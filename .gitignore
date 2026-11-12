@@ -1,0 +1,14 @@
+.venv/
+external/
+__pycache__/
+*.pyc
+data/Connectivity_783.parquet
+data/Completeness_783.csv
+data/Supplemental_file1_neuron_annotations.tsv
+data/weights_pre_csr.npz
+data/annotations_783.parquet
+data/graph_cache.npz
+runs/*/spikes.npz
+runs/cache/
+*.log
+runs/

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FlyLab — Claude as a fly neuroscientist</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+.viz-root, :root {
+  color-scheme: dark;
+  --bg: #121211;
+  --surface-1: #1a1a19;
+  --surface-2: #222220;
+  --border: #383835;
+  --text-primary: #f0efec;
+  --text-secondary: #c3c2b7;
+  --text-muted: #8a897f;
+  --series-1: #3987e5;  /* blue   */
+  --series-2: #d95926;  /* orange */
+  --series-3: #199e70;  /* aqua   */
+  --series-4: #c98500;  /* yellow */
+  --series-5: #d55181;  /* magenta */
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text-primary);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; overflow: hidden; }
+#app { display: grid; grid-template-rows: 64px 1fr; height: 100vh; }
+header { display: flex; align-items: center; gap: 20px; padding: 0 24px; border-bottom: 1px solid var(--border);
+  background: var(--surface-1); }
+.logo { font-size: 26px; font-weight: 800; letter-spacing: .5px; }
+.logo span { color: var(--series-2); }
+.sub { color: var(--text-secondary); font-size: 15px; }
+.sub b { color: var(--text-primary); font-weight: 600; }
+.status { margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 7px 14px; border-radius: 20px;
+  background: var(--surface-2); border: 1px solid var(--border); font-size: 14px; color: var(--text-secondary); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
+.status.busy .dot { background: var(--series-2); animation: pulse 1s infinite; }
+.status.busy { color: var(--text-primary); }
+@keyframes pulse { 50% { opacity: .3; } }
+main { display: grid; grid-template-columns: 430px 1fr; min-height: 0; }
+/* feed */
+#feedcol { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; background: var(--surface-1); }
+.coltitle { padding: 14px 18px 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); }
+#feed { flex: 1; overflow-y: auto; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--text-muted);
+  border-radius: 8px; padding: 10px 12px; animation: slidein .35s ease-out; }
+@keyframes slidein { from { opacity: 0; transform: translateY(-10px); } }
+.card.k-sim { border-left-color: var(--series-1); }
+.card.k-beh { border-left-color: var(--series-2); }
+.card.k-lesion { border-left-color: var(--critical); }
+.card.k-trace { border-left-color: var(--series-3); }
+.card.k-lit, .card.k-agent { border-left-color: var(--series-4); }
+.card .top { display: flex; align-items: baseline; gap: 8px; }
+.card .ico { font-size: 16px; }
+.card .name { font-weight: 700; font-size: 15px; }
+.card .time { margin-left: auto; color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.card .args { color: var(--text-secondary); font-size: 13px; margin-top: 3px; word-break: break-word; }
+.card .res { margin-top: 6px; font-size: 13px; color: var(--text-primary); }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.chip { background: #2c2c29; border: 1px solid var(--border); border-radius: 12px; padding: 2px 9px; font-size: 12.5px;
+  font-variant-numeric: tabular-nums; }
+.chip b { font-weight: 700; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--text-muted); border-top-color: var(--series-2);
+  border-radius: 50%; animation: rot .8s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.path { font-family: Consolas, monospace; font-size: 12.5px; color: var(--text-secondary); margin-top: 4px; }
+.err { color: #e66767; }
+/* stage */
+#stage { display: grid; grid-template-rows: 1.25fr 1fr; gap: 14px; padding: 14px; min-height: 0; }
+.row { display: grid; gap: 14px; min-height: 0; }
+#row1 { grid-template-columns: 1.35fr 1fr; }
+#row2 { grid-template-columns: 1.35fr 1fr; }
+.panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; min-height: 0;
+  display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.ptitle { padding: 10px 14px 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted);
+  display: flex; gap: 10px; align-items: center; }
+.ptitle .what { text-transform: none; letter-spacing: 0; color: var(--text-primary); font-size: 15px; font-weight: 600; }
+.badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+.badge.lesion { background: var(--critical); color: #fff; }
+.badge.ctrl { background: #2c2c29; color: var(--text-secondary); border: 1px solid var(--border); }
+#videobox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #0d0d0c; position: relative; }
+#video { max-width: 100%; max-height: 100%; }
+.placeholder { color: var(--text-muted); font-size: 15px; text-align: center; padding: 20px; }
+#caption { padding: 8px 14px 10px; font-size: 13.5px; color: var(--text-secondary); line-height: 1.35; max-height: 74px; overflow: hidden; }
+#statebar { display: flex; gap: 8px; padding: 0 14px 10px; flex-wrap: wrap; }
+.state { padding: 4px 10px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; color: var(--text-secondary); }
+.state.on { color: var(--text-primary); border-color: var(--series-2); }
+#chartwrap { flex: 1; min-height: 0; position: relative; padding: 0 10px 8px; }
+#chart { width: 100%; height: 100%; display: block; }
+#tip { position: absolute; pointer-events: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 9px; font-size: 12.5px; display: none; white-space: nowrap; }
+#legend { display: flex; gap: 14px; padding: 0 14px 4px; font-size: 13px; color: var(--text-secondary); flex-wrap: wrap; }
+#legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+#rasterbox { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#raster { max-width: 100%; max-height: 100%; }
+.tabs { margin-left: auto; display: flex; gap: 4px; }
+.tab { background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 10px; font-size: 12.5px; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.tab.on { color: var(--text-primary); border-color: var(--series-2); }
+#brain3dwrap { flex: 1; min-height: 0; position: relative; }
+#brain3d { position: absolute; inset: 0; }
+#brain3d canvas { display: block; }
+#brain3dlabels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.b3label { position: absolute; font-size: 12px; font-weight: 700; color: #d95926; opacity: .55; text-shadow: 0 0 4px #000;
+  transition: opacity .1s; }
+.b3label.on { opacity: 1; color: #ffb38f; }
+#brain3dhud { position: absolute; left: 14px; top: 6px; font-size: 13.5px; color: var(--text-primary); pointer-events: none;
+  line-height: 1.45; text-shadow: 0 0 4px #000; }
+#brain3dhud .muted { color: var(--text-muted); font-size: 12px; }
+#brain3dlegend { position: absolute; left: 14px; bottom: 8px; display: flex; gap: 14px; font-size: 12.5px; color: var(--text-secondary);
+  pointer-events: none; flex-wrap: wrap; }
+#brain3dlegend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+#carbox { position: absolute; inset: 0; }
+#carhud { position: absolute; left: 14px; top: 8px; font-size: 14px; color: var(--text-primary); pointer-events: none;
+  text-shadow: 0 0 4px #000; line-height: 1.45; }
+#carhud .muted { color: var(--text-secondary); font-size: 12px; }
+#chatbox { height: 42%; min-height: 260px; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+.chattitle { display: flex; align-items: center; gap: 8px; }
+.chattitle .tab:first-of-type { margin-left: auto; }
+#chatstatus { text-transform: none; letter-spacing: 0; color: var(--series-2); font-size: 12.5px; }
+#chatlog { flex: 1; overflow-y: auto; padding: 0 14px 8px; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; line-height: 1.4; }
+.msg { padding: 7px 10px; border-radius: 8px; max-width: 95%; word-wrap: break-word; }
+.msg.user { align-self: flex-end; background: #3a2418; border: 1px solid var(--series-2); }
+.msg.assistant { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--border); color: var(--text-secondary); }
+.msg.assistant strong { color: var(--text-primary); }
+.msg.assistant p { margin: 3px 0 !important; }
+.msg.error { background: #3a1818; border: 1px solid #e66767; color: #f3b0b0; }
+.chips2 { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip2 { background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px; padding: 4px 10px; font-size: 12.5px;
+  color: var(--text-secondary); cursor: pointer; }
+.chip2:hover { border-color: var(--series-2); color: var(--text-primary); }
+#chatform { display: flex; gap: 8px; padding: 8px 14px 12px; }
+#chatinput { flex: 1; resize: none; background: var(--surface-2); color: var(--text-primary); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 14px; }
+#chatinput:focus { outline: none; border-color: var(--series-2); }
+#chatsend { background: var(--series-2); color: #fff; border: 0; border-radius: 8px; padding: 0 16px; font-weight: 700; cursor: pointer; }
+#chatsend:disabled, #chatinput:disabled { opacity: .45; cursor: not-allowed; }
+#report { flex: 1; overflow-y: auto; padding: 4px 16px 14px; font-size: 14px; line-height: 1.45; color: var(--text-secondary); }
+#report h1 { font-size: 17px; color: var(--text-primary); margin: 4px 0 8px; }
+#report h2, #report h3 { font-size: 15px; color: var(--text-primary); margin: 10px 0 4px; }
+#report strong { color: var(--text-primary); }
+#report code { background: #2c2c29; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+#report ol, #report ul { padding-left: 20px; margin: 4px 0; }
+#report hr { border: 0; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div id="app" class="viz-root">
+  <header>
+    <div class="logo">Fly<span>Lab</span></div>
+    <div class="sub">FlyWire connectome · <b>138,639 neurons</b> · <b>15.1 M</b> connections · whole-brain LIF (Shiu et al. 2024) · NeuroMechFly body</div>
+    <div class="status" id="status"><div class="dot"></div><span id="statustext">Claude idle</span></div>
+  </header>
+  <main>
+    <section id="feedcol">
+      <div class="coltitle">Claude at work — live tool calls</div>
+      <div id="feed"><div class="placeholder">Waiting for Claude… (tool calls appear here via the PostToolUse hook)</div></div>
+      <div id="chatbox">
+        <div class="coltitle chattitle">Ask Claude <span id="chatstatus"></span>
+          <button id="chatstop" class="tab" style="display:none">stop</button><button id="chatnew" class="tab">new chat</button></div>
+        <div id="chatlog"></div>
+        <div id="chatform"><textarea id="chatinput" rows="2" placeholder="Ask the fly lab… (Enter to send)"></textarea>
+          <button id="chatsend">Send</button></div>
+      </div>
+    </section>
+    <section id="stage">
+      <div class="row" id="row1">
+        <div class="panel">
+          <div class="ptitle">Body <span class="what" id="behname">—</span><span id="behbadge"></span></div>
+          <div id="videobox"><div class="placeholder">No behaviour rendered yet</div></div>
+          <div id="caption"></div>
+        </div>
+        <div class="panel">
+          <div class="ptitle">Brain → body readout <span class="what" id="readoutname"></span></div>
+          <div id="legend"></div>
+          <div id="chartwrap"><canvas id="chart"></canvas><div id="tip"></div></div>
+          <div id="statebar"></div>
+        </div>
+      </div>
+      <div class="row" id="row2">
+        <div class="panel">
+          <div class="ptitle">Brain activity <span class="what" id="simname">—</span><span id="simbadge"></span>
+            <span class="tabs"><button id="tab3d" class="tab on">3D brain</button><button id="tabraster" class="tab">Raster</button></span></div>
+          <div id="brain3dwrap">
+            <div id="brain3d"></div><div id="brain3dlabels"></div>
+            <div id="brain3dhud"></div>
+            <div id="brain3dlegend"><span><i style="background:#3987e5"></i>stimulated</span><span><i style="background:#d95926"></i>output (MN9, P9, DNa, MDN)</span><span><i style="background:#e66767"></i>silenced</span><span><i style="background:#f0efec"></i>other neurons firing</span></div>
+          </div>
+          <div id="rasterbox" style="display:none"><div class="placeholder">No simulation yet</div></div>
+        </div>
+        <div class="panel">
+          <div class="ptitle">Lab report <span class="what" id="reptitle"></span></div>
+          <div id="report"><div class="placeholder">The report appears here when Claude saves it.</div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
+<script type="module" src="/dashboard/brain3d.js"></script>
+<script type="module" src="/dashboard/car3d.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+window.flylabState = {};
+function showTab(which) {
+  $("tab3d").classList.toggle("on", which === "3d"); $("tabraster").classList.toggle("on", which !== "3d");
+  $("brain3dwrap").style.display = which === "3d" ? "" : "none"; $("rasterbox").style.display = which === "3d" ? "none" : "";
+}
+document.addEventListener("DOMContentLoaded", () => { $("tab3d").onclick = () => showTab("3d"); $("tabraster").onclick = () => showTab("raster"); });
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+// ---------------------------------------------------------------- live feed
+let nEvents = 0, pending = [];
+const KIND = { run_simulation: ["⚡", "k-sim", "Simulate brain"], run_behavior: ["🎬", "k-beh", "Run behaviour"],
+  lesion_screen: ["✂️", "k-lesion", "Lesion screen"], compare_conditions: ["⚖️", "k-lesion", "Compare conditions"],
+  trace_pathway: ["🧭", "k-trace", "Trace pathway"], search_neurons: ["🔍", "k-trace", "Search connectome"],
+  get_neuron_group: ["🧩", "k-trace", "Neuron group"], list_neuron_groups: ["🧩", "k-trace", "List groups"],
+  list_behaviors: ["📋", "k-trace", "List behaviours"], get_literature_facts: ["📚", "k-lit", "Literature facts"],
+  save_report: ["📝", "k-lit", "Save lab report"], Agent: ["🤖", "k-agent", "Subagent"], Task: ["🤖", "k-agent", "Subagent"],
+  Skill: ["🧠", "k-agent", "Skill"] };
+
+function argText(tool, a) {
+  if (!a) return "";
+  if (tool === "run_simulation") return `activate: ${(a.activate||[]).join(", ")||"—"}` + (a.silence && a.silence.length ? ` · silence: ${a.silence.join(", ")}` : "") + (a.stim_rate_hz ? ` · ${a.stim_rate_hz} Hz` : "");
+  if (tool === "run_behavior") return `${a.behavior}` + (a.silence && a.silence.length ? ` · silence: ${a.silence.join(", ")}` : "");
+  if (tool === "trace_pathway") return `${a.source} → ${a.target}` + (a.functional_run_id ? " (functional)" : "");
+  if (tool === "lesion_screen") return `activate ${(a.activate||[]).join(", ")} · target ${a.target}`;
+  if (tool === "search_neurons") return `"${a.query}"`;
+  if (tool === "get_neuron_group") return a.name;
+  if (tool === "get_literature_facts") return a.topic || "all";
+  if (tool === "save_report") return a.title;
+  if (tool === "compare_conditions") return `${a.run_id_a} vs ${a.run_id_b}`;
+  if (tool === "Agent" || tool === "Task") return `${a.subagent || ""} — ${a.description || ""}`;
+  if (tool === "Skill") return a.skill || a.command || "";
+  const s = JSON.stringify(a); return s.length > 140 ? s.slice(0, 140) + "…" : s;
+}
+function resHTML(r) {
+  if (!r) return "";
+  let h = "";
+  if (r.error) return `<div class="res err">${esc(r.error)}</div>`;
+  if (r.rates_hz && Object.keys(r.rates_hz).length) h += `<div class="chips">` + Object.entries(r.rates_hz).filter(([g]) => !g.startsWith("proboscis"))
+      .map(([g, v]) => `<span class="chip">${esc(g)} <b>${(+v).toFixed(0)} Hz</b></span>`).join("") + `</div>`;
+  else if (r.rates_hz) h += `<div class="chips"><span class="chip">all outputs <b>0 Hz</b></span></div>`;
+  if (r.active_neurons != null) h += `<div class="chips"><span class="chip"><b>${r.active_neurons}</b> neurons active</span></div>`;
+  if (r.changes) h += `<div class="chips">` + Object.entries(r.changes).map(([g, v]) => `<span class="chip">${esc(g)} <b>${esc(v)}</b></span>`).join("") + `</div>`;
+  if (r.best_path) h += `<div class="path">${esc(r.best_path)}</div>`;
+  if (r.top_hits) h += `<div class="chips">` + r.top_hits.map(t => `<span class="chip">${esc(t)}</span>`).join("") + `</div>`;
+  if (r.matches) h += `<div class="chips">` + r.matches.map(t => `<span class="chip">${esc(t)}</span>`).join("") + `</div>`;
+  if (r.summary) h += `<div class="res">${esc(compactSummary(r.summary))}</div>`;
+  if (r.saved) h += `<div class="res">saved ${esc(r.saved)}</div>`;
+  if (r.text && !h) h += `<div class="res">${esc(r.text.slice(0, 220))}</div>`;
+  return h;
+}
+// "t=0-0.67 s: MN9 0 Hz -> no feeding ...; P9 103 Hz -> forward drive 0.93; ..." -> keep the active clauses only
+function compactSummary(sum) {
+  const parts = [];
+  if (sum.startsWith("LESION")) parts.push(sum.split(".")[0] + ".");
+  const re = /t=([\d.]+)-([\d.]+) s(?: \[([^\]]+)\])?: ([^.]*(?:\.\d+[^.]*)*)\./g; let m;
+  while ((m = re.exec(sum))) {
+    const clauses = m[4].split("; ").filter(c => !/^(P9|MDN) 0 Hz|DNa L\/R 0\/0|turn [+-]0\.0\d \(straight\)/.test(c))
+      .map(c => c.replace(/ \(threshold 30 Hz\)/, "").replace(/ \(proboscis extension\)/, ""));
+    parts.push(`${m[1]}–${m[2]} s${m[3] ? " · " + m[3].replace(" -> sugar GRNs stimulated", "") : ""}: ${clauses.join("; ")}`);
+  }
+  return parts.length ? parts.join("  |  ") : (sum.length > 200 ? sum.slice(0, 200) + "…" : sum);
+}
+function addEvent(ev) {
+  const feed = $("feed");
+  if (feed.firstChild && feed.firstChild.classList && feed.firstChild.classList.contains("placeholder")) feed.innerHTML = "";
+  const [ico, cls, nice] = KIND[ev.tool] || ["🔧", "", ev.tool];
+  if (ev.phase === "start") {
+    const el = document.createElement("div");
+    el.className = `card ${cls}`;
+    el.innerHTML = `<div class="top"><span class="ico">${ico}</span><span class="name">${esc(nice)}</span><span class="time">${esc(ev.time)}</span></div>
+      <div class="args">${esc(argText(ev.tool, ev.args))}</div><div class="res"><span class="spin"></span>running…</div>`;
+    feed.prepend(el); pending.push({ tool: ev.tool, el });
+  } else {
+    let i = pending.map(p => p.tool).lastIndexOf(ev.tool), el;
+    if (i >= 0) { el = pending[i].el; pending.splice(i, 1); }
+    else { el = document.createElement("div"); el.className = `card ${cls}`; feed.prepend(el); }
+    el.innerHTML = `<div class="top"><span class="ico">${ico}</span><span class="name">${esc(nice)}</span><span class="time">${esc(ev.time)}</span></div>
+      <div class="args">${esc(argText(ev.tool, ev.args))}</div>${resHTML(ev.short_result)}`;
+  }
+  const busy = pending.length > 0, st = $("status");
+  st.classList.toggle("busy", busy);
+  $("statustext").textContent = busy ? `Claude running: ${(KIND[pending[pending.length-1].tool]||[0,0,pending[pending.length-1].tool])[2]}` : "Claude idle";
+}
+async function pollEvents() {
+  try {
+    const r = await (await fetch(`/api/events?after=${nEvents}`)).json();
+    if (r.n < nEvents) { nEvents = 0; $("feed").innerHTML = ""; pending = []; return; }
+    r.events.forEach(addEvent); nEvents = r.n;
+  } catch (e) {}
+}
+
+// ---------------------------------------------------------------- latest runs
+let lastSim = null, lastBeh = null, lastRep = null, series = null;
+function md(s) {
+  const lines = s.split(/\r?\n/); let out = "", list = null;
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
+  for (const ln of lines) {
+    let m;
+    if ((m = ln.match(/^\s*(\d+)\.\s+(.*)/))) { if (list !== "ol") { if (list) out += `</${list}>`; out += "<ol>"; list = "ol"; } out += `<li>${inline(m[2])}</li>`; continue; }
+    if ((m = ln.match(/^\s*[-*]\s+(.*)/))) { if (list !== "ul") { if (list) out += `</${list}>`; out += "<ul>"; list = "ul"; } out += `<li>${inline(m[1])}</li>`; continue; }
+    if (list) { out += `</${list}>`; list = null; }
+    if ((m = ln.match(/^(#{1,3})\s+(.*)/))) out += `<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`;
+    else if (/^\s*(---|```)\s*$/.test(ln)) out += ln.includes("-") ? "<hr>" : "";
+    else if (ln.trim()) out += `<p style="margin:4px 0">${inline(ln)}</p>`;
+  }
+  if (list) out += `</${list}>`;
+  return out;
+}
+function buildSeries(beh) {
+  const C = beh.commands; if (!C || !C.length) return null;
+  const bin = C[0].bin_s; let parts = [C[0]], cut = [C[0].n_bins];
+  let rates = {}, feeding = [], fw = [], tn = [], bw = [];
+  if (C.length > 1 && beh.phases && beh.phases[1]) {
+    const b0 = Math.round(beh.phases[1].t[0] / bin);
+    const take = (k, sub) => sub ? C[0].rates[k].slice(0, b0).concat(C[1].rates[k].slice(b0)) : C[0][k].slice(0, b0).concat(C[1][k].slice(b0));
+    for (const k of Object.keys(C[0].rates)) rates[k] = take(k, true);
+    feeding = take("feeding_state"); fw = take("forward"); tn = take("turn"); bw = take("backward");
+  } else { rates = C[0].rates; feeding = C[0].feeding_state; fw = C[0].forward; tn = C[0].turn; bw = C[0].backward; }
+  const takeoff = C[0].takeoff_state || feeding.map(() => 0);
+  const sm = (x) => x.map((_, i) => { let a = 0, k = 0; for (let j = Math.max(0, i - 3); j <= Math.min(x.length - 1, i + 3); j++) { a += x[j]; k++; } return a / k; });
+  const rs = {}; for (const k of Object.keys(rates)) rs[k] = sm(rates[k]); rates = rs;
+  return { bin, rates, feeding, fw, tn, bw, takeoff, car: beh.scene === "car", n: rates.MN9.length,
+    contact: (C.length > 1 && beh.phases[1]) ? beh.phases[1].t[0] : null };
+}
+const SER = [["P9", "P9 → forward", "--series-1"], ["MN9", "MN9 → feeding", "--series-2"],
+             ["DNa", "DNa L−R → turn", "--series-3"], ["MDN", "MDN → backward", "--series-4"]];
+function getVal(s, key, i) { return key === "DNa" ? (s.rates.DNa_left[i] - s.rates.DNa_right[i]) : ((s.rates[key] || [])[i] || 0); }
+const SER_COURSE = [["eye_L", "left eye → LPLC1_L", "--series-3"], ["eye_R", "right eye → LPLC1_R", "--series-4"],
+                    ["DNa_left", "DNa left → steer left", "--series-1"], ["DNa_right", "DNa right → steer right", "--series-2"]];
+function seriesList(s) {
+  if (s && s.rates.eye_L) return SER_COURSE.slice();
+  const base = SER.slice();
+  if (s && s.rates.GF && s.rates.GF.some(x => x > 1)) base.push(["GF", "giant fiber → take-off", "--series-5"]);
+  return base;
+}
+function drawChart() {
+  const cv = $("chart"), wrap = $("chartwrap"); const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth - 20, H = wrap.clientHeight - 8; if (W <= 0 || H <= 0) return;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + "px"; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+  if (!series) { g.fillStyle = css("--text-muted"); g.font = "14px Segoe UI"; g.fillText("Rates appear when a behaviour runs", 16, 30); return; }
+  const L = 44, R = 92, T = 16, B = 26, pw = W - L - R, ph = H - T - B;
+  const s = series, n = s.n, tmax = n * s.bin;
+  const SERS = seriesList(s);
+  let ymax = 100; for (const [k] of SERS) for (let i = 0; i < n; i++) ymax = Math.max(ymax, Math.abs(getVal(s, k, i)));
+  ymax = Math.ceil(ymax / 20) * 20; const ymin = 0;
+  const X = t => L + pw * t / tmax, Y = v => T + ph * (1 - (Math.max(v, 0) - ymin) / (ymax - ymin));
+  g.strokeStyle = css("--border"); g.lineWidth = 1; g.fillStyle = css("--text-muted"); g.font = "12px Segoe UI";
+  for (let v = 0; v <= ymax; v += ymax / 4) { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(L + pw, Y(v)); g.stroke(); g.fillText(v.toFixed(0), 6, Y(v) + 4); }
+  for (let t = 0; t <= tmax + 1e-6; t += (tmax > 3 ? 1 : 0.5)) { g.fillText(t.toFixed(1) + " s", X(t) - 12, H - 6); }
+  g.fillText("Hz", L + 4, T + 12);
+  // feeding-state shading
+  g.fillStyle = "rgba(217,89,38,0.10)";
+  for (let i = 0; i < n; i++) if (s.feeding[i]) g.fillRect(X(i * s.bin), T, pw / n + 0.5, ph);
+  // MN9 threshold
+  if (!s.rates.eye_L) {
+  g.strokeStyle = css("--text-secondary"); g.setLineDash([4, 4]); g.beginPath(); g.moveTo(L, Y(30)); g.lineTo(L + pw, Y(30)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = css("--text-secondary"); g.fillText("feeding threshold 30 Hz", L + 6, Y(30) - 5); }
+  if (s.contact != null) { g.strokeStyle = css("--text-primary"); g.beginPath(); g.moveTo(X(s.contact), T); g.lineTo(X(s.contact), T + ph); g.stroke();
+    g.fillStyle = css("--text-primary"); g.fillText("sugar contact", X(s.contact) + 4, T + 12); }
+  const labels = [];
+  for (const [k, lab, col] of SERS) {
+    g.strokeStyle = css(col); g.lineWidth = 2; g.beginPath();
+    for (let i = 0; i < n; i++) { const x = X((i + 0.5) * s.bin), y = Y(getVal(s, k, i)); i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke();
+    labels.push([Y(getVal(s, k, n - 1)), k === "DNa" ? "DNa L−R" : k.replace("_left", " L").replace("_right", " R").replace("eye_", "eye ")]);
+  }
+  labels.sort((a, b) => a[0] - b[0]);
+  for (let i = 1; i < labels.length; i++) if (labels[i][0] - labels[i - 1][0] < 14) labels[i][0] = labels[i - 1][0] + 14;
+  g.fillStyle = css("--text-secondary"); for (const [y, t] of labels) g.fillText(t, L + pw + 6, y + 4);
+  // playhead synced to the video
+  const v = document.querySelector("#video");
+  const carT = (lastBeh && lastBeh.scene === "car" && window.flylabSceneTime) ? window.flylabSceneTime() : null;
+  if (carT != null || (v && !isNaN(v.currentTime))) {
+    const t = carT != null ? Math.min(carT, tmax) : Math.min(v.currentTime * ((lastBeh && lastBeh.video_play_speed) || 0.25), tmax); g.strokeStyle = css("--text-primary"); g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(X(t), T); g.lineTo(X(t), T + ph); g.stroke();
+    const i = Math.min(n - 1, Math.floor(t / s.bin)); updateStates(i);
+  }
+  chartGeom = { L, pw, tmax, T, ph };
+}
+let chartGeom = null;
+function updateStates(i) {
+  const s = series; if (!s) return;
+  const st = s.car
+    ? [["Throttle", s.fw[i] > 0.1], ["Steering " + (s.tn[i] > 0 ? "left" : "right"), Math.abs(s.tn[i]) > 0.1], ["Reverse", s.bw[i] > 0.1]]
+    : [["Walking forward", s.fw[i] > 0.1], ["Turning " + (s.tn[i] > 0 ? "left" : "right"), Math.abs(s.tn[i]) > 0.1],
+       ["Walking backward", s.bw[i] > 0.1], ["FEEDING (proboscis)", !!s.feeding[i]]];
+  if (s.takeoff.some(x => x)) st.push(["TAKE-OFF (giant fiber)", s.takeoff.slice(0, i + 1).some(x => x)]);
+  $("statebar").innerHTML = st.map(([l, on]) => `<span class="state ${on ? "on" : ""}">${on ? "● " : "○ "}${esc(l)}</span>`).join("");
+}
+$("chartwrap").addEventListener("mousemove", (e) => {
+  if (!series || !chartGeom) return; const r = $("chart").getBoundingClientRect(); const x = e.clientX - r.left;
+  const t = (x - chartGeom.L) / chartGeom.pw * chartGeom.tmax; if (t < 0 || t > chartGeom.tmax) { $("tip").style.display = "none"; return; }
+  const i = Math.min(series.n - 1, Math.floor(t / series.bin)); const tip = $("tip");
+  tip.innerHTML = `<b>t = ${t.toFixed(2)} s</b><br>` + seriesList(series).map(([k]) => `${k === "DNa" ? "DNa L−R" : k}: ${getVal(series, k, i).toFixed(0)} Hz`).join("<br>");
+  tip.style.display = "block"; tip.style.left = Math.min(x + 14, r.width - 140) + "px"; tip.style.top = "10px";
+});
+$("chartwrap").addEventListener("mouseleave", () => $("tip").style.display = "none");
+function renderLegend() {
+  $("legend").innerHTML = seriesList(series).map(([k, lab, col]) => `<span><i style="background:${css(col)}"></i>${esc(lab)}</span>`).join("")
+    + (series && series.rates.eye_L ? `<span style="color:var(--text-muted)">closed loop: eyes → brain → steering</span>` : `<span style="color:var(--text-muted)">shaded = feeding state</span>`);
+}
+renderLegend();
+
+async function pollLatest() {
+  let d; try { d = await (await fetch("/api/latest")).json(); } catch (e) { return; }
+  const sim = d.sim, beh = d.behavior, rep = d.report;
+  window.flylabState = { sim: sim && { run_id: sim.run_id, _mtime: sim._mtime }, beh: beh && { run_id: beh.run_id, _mtime: beh._mtime } };
+  if (sim && (!lastSim || sim.run_id !== lastSim.run_id || sim._mtime !== lastSim._mtime)) {
+    lastSim = sim;
+    const names = [...new Set(Object.keys(sim.activated || {}).map(k => k.replace(/ \[.*\]$/, "")))];
+    const nm = names.join(" + ") || "baseline";
+    $("simname").textContent = nm.length > 70 ? nm.slice(0, 70) + "…" : nm;
+    $("simbadge").innerHTML = Object.keys(sim.silenced || {}).length ? `<span class="badge lesion">silenced ${esc(Object.keys(sim.silenced).join(", "))}</span>` : "";
+    $("rasterbox").innerHTML = `<img id="raster" src="/${sim.raster_png}?t=${sim._mtime}">`;
+  }
+  if (beh && (!lastBeh || beh.run_id !== lastBeh.run_id || beh._mtime !== lastBeh._mtime)) {
+    const changed = !lastBeh || beh.run_id !== lastBeh.run_id; lastBeh = beh;
+    $("behname").textContent = beh.behavior.replace(/_/g, " ");
+    $("readoutname").textContent = beh.behavior.replace(/_/g, " ");
+    $("behbadge").innerHTML = (beh.silenced && beh.silenced.length) ? `<span class="badge lesion">LESION: ${esc(beh.silenced.join(", "))} silenced</span>` : `<span class="badge ctrl">intact brain</span>`;
+    if (beh.scene === "car") {
+      if (changed) { $("videobox").innerHTML = `<div id="carbox"></div><div id="carhud"></div>`; window.flylabCarRun = beh.run_id;
+        if (window.flylabShowCar) window.flylabShowCar(beh); }
+    } else {
+      if (window.flylabHideCar) window.flylabHideCar(); window.flylabCarRun = null;
+      if (beh.video && changed) $("videobox").innerHTML = `<video id="video" src="/${beh.video}?t=${beh._mtime}" autoplay loop muted playsinline></video>`;
+      else if (!beh.video) $("videobox").innerHTML = `<div class="placeholder">${esc(beh.behavior)}: brain-only behaviour (no body video).<br>See the brain activity panel.</div>`;
+    }
+    $("caption").textContent = compactSummary(beh.summary || "");
+    series = buildSeries(beh); renderLegend(); drawChart();
+  }
+  if (rep && (!lastRep || rep._mtime !== lastRep._mtime)) {
+    lastRep = rep; $("reptitle").textContent = ""; $("report").innerHTML = md(rep.markdown);
+  }
+}
+// ---------------------------------------------------------------- chat (Claude Code headless)
+const SUGGEST = ["Make the fly eat when it finds sugar, then prove which neuron is responsible.",
+  "Make it reject food when there's something bitter in it.", "Make the fly take off when something looms.",
+  "Drive the car to the sugar station.", "Make the fly walk backwards.", "Which neurons respond to bitter taste?"];
+let chatN = 0, chatBusy = false;
+function renderChips() {
+  if (chatN > 0) return;
+  $("chatlog").innerHTML = `<div style="color:var(--text-muted);font-size:12.5px">Try:</div><div class="chips2">` +
+    SUGGEST.map(t => `<span class="chip2">${esc(t)}</span>`).join("") + `</div>`;
+  document.querySelectorAll(".chip2").forEach(el => el.onclick = () => { $("chatinput").value = el.textContent; $("chatinput").focus(); });
+}
+function addMsg(m) {
+  if (chatN === 0) $("chatlog").innerHTML = "";
+  const el = document.createElement("div"); el.className = `msg ${m.role}`;
+  el.innerHTML = m.role === "assistant" ? md(m.text) : esc(m.text);
+  $("chatlog").appendChild(el); $("chatlog").scrollTop = $("chatlog").scrollHeight;
+}
+function setChatBusy(b) {
+  chatBusy = b; $("chatsend").disabled = b; $("chatinput").disabled = b; $("chatstop").style.display = b ? "" : "none";
+  $("chatstatus").innerHTML = b ? `<span class="spin"></span>Claude is working…` : "";
+}
+async function pollChat() {
+  try {
+    const r = await (await fetch(`/api/chat?after=${chatN}`)).json();
+    if (r.n < chatN) { chatN = 0; $("chatlog").innerHTML = ""; renderChips(); }
+    r.messages.forEach(m => { addMsg(m); chatN++; });
+    setChatBusy(r.busy);
+    if (!r.claude_found) $("chatstatus").textContent = "Claude Code program not found";
+  } catch (e) {}
+}
+async function sendChat() {
+  const text = $("chatinput").value.trim(); if (!text || chatBusy) return;
+  setChatBusy(true);
+  const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
+  if (r.ok) $("chatinput").value = ""; else { const e = await r.json(); alert(e.error || "error"); setChatBusy(false); }
+  pollChat();
+}
+$("chatsend").onclick = sendChat;
+$("chatinput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+$("chatnew").onclick = async () => { const r = await fetch("/api/chat/reset", { method: "POST" }); if (!r.ok) alert((await r.json()).error); chatN = 0; $("chatlog").innerHTML = ""; renderChips(); };
+$("chatstop").onclick = () => fetch("/api/chat/stop", { method: "POST" });
+renderChips(); setInterval(pollChat, 1000); pollChat();
+
+function loop() { drawChart(); requestAnimationFrame(loop); }
+setInterval(pollEvents, 1000); setInterval(pollLatest, 1000);
+pollEvents(); pollLatest(); window.addEventListener("resize", drawChart); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
