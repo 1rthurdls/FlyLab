@@ -80,6 +80,8 @@ def _spikes(run_id: str, trial: int = 0):
     return z["step"][m].astype(np.int64), z["neuron"][m].astype(np.int64), float(z["duration_s"])
 
 
+MAX_SPIKES_3D = 120_000   # cap for the dashboard's 3D brain (it animates spikes; it does not need them all)
+
 def activity(run_id: str) -> dict:
     res = cache.load_result(run_id)
     if res is None:
@@ -105,8 +107,12 @@ def activity(run_id: str) -> dict:
         label = res.get("label", run_id)
         play_speed = 0.25
     o = np.argsort(steps, kind="stable")
+    n_total = int(len(o))
+    if n_total > MAX_SPIKES_3D:   # long closed-loop runs (25 s) have ~10^5-10^6 spikes: send an even subsample
+        o = o[np.linspace(0, n_total - 1, MAX_SPIKES_3D).astype(np.int64)]
     return {"run_id": run_id, "kind": res.get("kind"), "label": label, "duration_s": dur, "contact_s": contact,
-            "play_speed": play_speed, "step_ms": DT_MS, "n_spikes": int(len(o)),
+            "play_speed": play_speed, "step_ms": DT_MS, "n_spikes": n_total, "n_spikes_sent": int(len(o)),
+            "subsampled": n_total > MAX_SPIKES_3D,
             "n_neurons_firing": int(len(np.unique(neus))),
             "t": steps[o].tolist(), "n": neus[o].tolist(), **roles}
 

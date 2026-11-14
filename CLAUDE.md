@@ -16,7 +16,8 @@ neuroscientist: you find circuits in the connectome, drive them, watch the body,
 
 ## Tools (MCP server `flylab`, see `.mcp.json`)
 `search_neurons`, `list_neuron_groups`, `get_neuron_group`, `trace_pathway`, `run_simulation`, `compare_conditions`,
-`lesion_screen`, `list_behaviors`, `run_behavior`, `drive_car`, `run_course`, `get_literature_facts`, `save_report`.
+`lesion_screen`, `list_behaviors`, `run_behavior`, `drive_car`, `run_course`, `swat_fly`, `ride_bike`, `play_piano`,
+`run_olympics`, `fly_through`, `run_maze`, `get_literature_facts`, `save_report`.
 Names accepted everywhere: curated group names (`sugar_GRNs`, `bitter_GRNs`, `MN9`, `P9`, `MDN`, `DNa02_left`, ...),
 FlyWire cell types (`CB0553`), cell type + side (`CB0553_L`) or a FlyWire root id.
 Simulations are cached by parameters; reuse defaults (duration_s=1.0, n_trials=8) so cached results are hit.
@@ -33,6 +34,27 @@ Simulations are cached by parameters; reuse defaults (duration_s=1.0, n_trials=8
   continuous trial in 20 ms chunks and its DNa output steers. Nobody picks manoeuvres. Turning away from the nearer wall
   is a model property (LPLC1 -> contralateral DNa01); the literature only shows LPLC1 -> slowing/collision avoidance.
   Control: `silence=["LPLC1"]` -> blind to walls -> crash.
+- **Fly swatter**: `swat_fly(speed="slow"|"normal"|"fast"|"lightning")`: looming swatter -> LPLC2 + LC4 (designed eye
+  model, `flylab/looming.py`) -> giant fiber, closed loop in 5 ms chunks. GF > 50 Hz in time -> scripted take-off, else
+  SPLAT. Control: `silence=["giant_fiber"]` -> splat. `silence=["LPLC2"]` -> escape relies on LC4 and comes later.
+- **Bicycle**: `ride_bike(preset=...)`: brain -> interface -> real flygym legs -> ball-rig read-out (forward speed, yaw)
+  -> bike (designed gear). The bike reads the LEGS. Lesion demo: `silence=["DNa01_left","DNa02_left"]`, `preset="loop"`.
+- **Fly piano band**: `play_piano(mode="keyboard")`: flies walk on a pentatonic keyboard; each front-foot touchdown
+  (MuJoCo contact) plays a key. `mode="orchestra"`: brain-only sonification; WE write the score (stimulus timing),
+  the brain decides which notes sound (sugar -> MN9 bass, muted by bitter; DNa turn signal melody; looming -> GF drums).
+  Never say the flies compose or play music; say we listen to their walking / brain output.
+- **A specific song**: `play_piano(mode="song_road", song=...)` lays the song's keys just ahead of a P9-driven walking
+  fly (a key sounds when a foot first lands on it; rhythm and missed notes come from its real steps);
+  `mode="song_orchestra"` = one sugar pulse per note, a note sounds if MN9 > 20 Hz (control: `bitter_notes=[...]`).
+  `song` = `ode_to_joy` | `twinkle` | `frere_jacques` or note text `"E4 E4 F4 G4:2 R:1"`. The melody is always OUR
+  score. For copyrighted songs ask the user to supply the notes; do not reproduce them from memory.
+- **Connectome Olympics**: `run_olympics(course, contestants)`: the same brain with different lesions races
+  `run_course`; a lesion experiment presented as a race. Results are model predictions.
+- **Fly-throughs**: `fly_through(place="cave"|"forest", bat=True)`: themed `run_course` with pillars/trees; flight is
+  NOT simulated (fixed-height glide). The bat's looming drives LPLC2/LC4; GF > 50 Hz -> scripted dodge, else caught.
+- **Sugar maze**: `run_maze()`: corridor with sugar and poisoned (sugar + bitter) pellets; touching one drives the
+  taste GRNs, MN9 > 30 Hz -> stop and eat. Bitter ALONE does not drive MDN/backing up in this model (0 Hz): bitter
+  only blocks eating. Controls: `silence=["bitter_GRNs"]` (eats poison), `silence=["CB0553"]` (eats nothing).
 - Requests with no circuit (e.g. "play chess", "learn to like bitter"): say so, offer the closest real experiment.
 
 ## House rules for experiments (and for the demo)

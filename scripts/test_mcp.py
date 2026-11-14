@@ -37,7 +37,11 @@ async def main():
                 calls += [("lesion_screen", {"activate": ["sugar_GRNs"], "target": "MN9", "n_candidates": 2,
                                              "duration_s": 0.5}),
                           ("run_behavior", {"behavior": "feed"}),
-                          ("run_course", {"course": "canyon"})]
+                          ("run_course", {"course": "canyon"}),
+                          ("swat_fly", {"speed": "normal"}),
+                          ("play_piano", {"mode": "orchestra"}),
+                          ("run_maze", {}),
+                          ("fly_through", {"place": "cave"})]
             results = {}
             ok = True
             for name, args in calls:
@@ -53,7 +57,7 @@ async def main():
             # compare control vs lesion (the two run_simulation calls above)
             res = await s.call_tool("compare_conditions", {"run_id_a": "sim_sugar-GRNs_" + "x", "run_id_b": "x"})
             print("compare_conditions with bad ids ->", res.content[0].text[:80])
-            assert set(tools) >= {c[0] for c in calls} | {"compare_conditions"}
+            assert set(tools) >= {c[0] for c in calls} | {"compare_conditions", "ride_bike", "run_olympics"}
             print("ALL OK" if ok else "SOME TOOLS FAILED")
             return ok
 

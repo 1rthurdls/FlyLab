@@ -48,6 +48,42 @@ cp .claude/settings.flylab.json .claude/settings.json   # once: hook -> live fee
 
 (Details and decisions below.)
 
+## Extra activities v2 (2026-11-12/13): swatter, bicycle, piano band, songs, Olympics, fly-throughs, maze
+
+All six are MCP tools (`swat_fly`, `ride_bike`, `play_piano`, `run_olympics`, `fly_through`, `run_maze`), have a
+dashboard view (`car3d.js` scenes, `piano.js`), a control/lesion, and cached results (`scripts/demo_extras.py <name>`).
+Numbers are in README ("Extra activities") and `data/literature.md` ([FlyLab-data] facts).
+
+Measured before building (changed the design):
+- Bitter GRNs alone drive NO output (MDN 0 Hz): bitter does not make the model back up; in the maze it only blocks
+  eating. (My initial pitch said otherwise; corrected.)
+- LPLC2 10/20/30/50 Hz -> giant fiber 33/64/85/105 Hz; LC4 alone 20/30/50 Hz -> 8/26/47 Hz.
+
+Decisions / fixes worth knowing:
+- `looming.py`: one designed eye model (rate = 100 Hz x clip(expansion / 500 deg/s)) for swatter and bat.
+- Swatter: closed loop in 5 ms chunks; escape = GF > 50 Hz over 20 ms + 10 ms latency before impact. Videos at 0.1x.
+- Bat: the giant fiber also fires short wall-driven bursts in closed loop (LPLC1 input on both eyes). The first forest
+  run credited such a burst to the bat (bat 35 m away, looming 0.5 Hz). Now a dodge counts only while the bat's looming
+  drive is >= 5 Hz; other bursts are reported (`gf_bursts_without_bat`).
+- Course geometry: obstacles in bends crash the fly in the two-eye model (inside: cancels the bend cue; outside / right
+  after a bend: dead ahead, both eyes equal). Cave pillars live on straights or the inside after a bend.
+- Garden maze: 9 m corridor with 10 m bends was too tight (crash); widened to 11 m / 14 m like the proven hairpin.
+- Bicycle reads the LEGS (ball-rig equivalent: forward speed + yaw from the body trajectory), not the neurons.
+- Piano keyboard: footfalls = tarsal contact force hysteresis (on 2.5, off 1.0, >= 15 ms swing); front legs only.
+- Song road: first version replayed the physics twice (path pass + filmed pass) and drifted up to 5 mm / blew up
+  (mjWARN_BADQACC) in the filmed pass. v3 lays each key (mocap body) just ahead of the fly along its current heading
+  in ONE pass; physics errors retry with another CPG seed. Ode to Joy: 28/30 notes, ~73 BPM.
+- Orchestra drums (300+ visual neurons stimulated for 19 s) took > 2 h on the active-set kernel; now one
+  BrainStepper (dense parallel) trial, 14 min, cached. Snare = peak 20 ms giant-fiber bin per eighth note.
+- Dashboard: the first `/api/brain/activity` request imported torch + connectome inside the request (20-60 s) and
+  blocked the server; the page stayed empty. Server now warms up in a background thread; `/api/latest` is memoised
+  on `runs/latest.json`; the page never overlaps polls; 3D brain caps at 120k spikes. `piano.js` is scoped
+  (a global `loop` name clashed with index.html). Hook matcher anchored (`Task` matched `TaskStop`).
+- `.mcp.json` now starts the server from this folder (it pointed to an older copy in Downloads/Flylab).
+
+Costs on this laptop (CPU only, often with two jobs at once): closed-loop course 10-25 min, swatter video 3-5 min,
+bike 10-50 min, piano keyboard 25 min, song road 30 min, orchestra 15 min, singer 4 min.
+
 ## ACTION NEEDED in the morning (1 command)
 The auto-mode safety classifier blocked me from writing `.claude/settings.json` (it would have changed the hooks of
 my own running session). The hook config is ready as `.claude/settings.flylab.json`. To enable the live feed:

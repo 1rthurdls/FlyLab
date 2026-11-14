@@ -2,13 +2,13 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "mcp__flylab__.*|Agent|Task|Skill",
+        "matcher": "^(mcp__flylab__.*|Agent|Task|Skill)$",
         "hooks": [{"type": "command", "command": "python .claude/hooks/log_tool_event.py", "timeout": 10}]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "mcp__flylab__.*|Agent|Task|Skill",
+        "matcher": "^(mcp__flylab__.*|Agent|Task|Skill)$",
         "hooks": [{"type": "command", "command": "python .claude/hooks/log_tool_event.py", "timeout": 10}]
       }
     ]

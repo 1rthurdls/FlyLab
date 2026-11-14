@@ -2,8 +2,8 @@
   "mcpServers": {
     "flylab": {
       "type": "stdio",
-      "command": "C:/Users/cestm/Downloads/Flylab/.venv/Scripts/python.exe",
-      "args": ["C:/Users/cestm/Downloads/Flylab/flylab/mcp_server.py"],
+      "command": "C:/Users/cestm/Downloads/FlyLab-1/.venv/Scripts/python.exe",
+      "args": ["C:/Users/cestm/Downloads/FlyLab-1/flylab/mcp_server.py"],
       "env": {"PYTHONIOENCODING": "utf-8"}
     }
   }

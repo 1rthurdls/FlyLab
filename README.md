@@ -47,6 +47,13 @@ Media: [hero, intact brain](docs/hero_find_sugar_intact.mp4) · [hero, CB0553 si
 |---|---|---|
 | **Escape take-off** (`run_behavior("takeoff")`) | Looming detectors (LPLC2, 50 Hz) drive the giant fiber (DNp01) to ~100 Hz in the whole-brain model; the fly takes off ~20 ms after looming onset. Silencing the giant fiber abolishes take-off. | The flight itself is a single **scripted animation** (NeuroMechFly cannot fly; no aerodynamics). |
 | **The fly drives a car** (`drive_car` tool) | Each manoeuvre stimulates real descending neurons (P9 forward, DNa01/DNa02 steering, MDN reverse); the car follows what they actually fire, incl. P9's slight pull to the right. Silencing the left DNa neurons -> the car cannot turn left. | Car link (throttle/steering/reverse) and manoeuvre choice (Claude or a planner that re-plans on the real brain output). Nothing learns. Online "fly drives a car" claims had no primary source. |
+| **Fly swatter** (`swat_fly`) | A swatter comes down on a walking fly; its looming image drives LPLC2 + LC4 in a closed-loop whole-brain trial (5 ms chunks). Intact: the giant fiber crosses 50 Hz while the swatter is still 134 mm away and the fly is off the ground **255 ms before impact**. Giant fiber silenced: **splat**. LPLC2 silenced: escape relies on LC4 and comes 120 ms later. [escape](docs/swatter_intact_escape.mp4) · [splat](docs/swatter_giant_fiber_silenced_splat.mp4) | Looming eye model (`flylab/looming.py`), 50 Hz threshold + 10 ms take-off latency, swatter size/speed, the **scripted** take-off. Real flies also have a slower GF-independent escape (not modelled). |
+| **Bicycle** (`ride_bike`) | The bike reads the **legs**, not the neurons: manoeuvre stimuli -> whole brain -> interface -> physics-simulated legs -> their forward speed and yaw (what a ball under a tethered fly measures) -> bike. "Left" turned the legs +190 deg/s and the bike +186 deg; with left DNa01/DNa02 silenced the same manoeuvre turned it **-47 deg** (right). [video](docs/bike_loop_legs.mp4) | Gear (0.45 m/s per mm/s), yaw gain, the bike. |
+| **Fly piano band** (`play_piano`) | *keyboard*: three flies walk across a giant pentatonic keyboard; every front-foot touchdown (MuJoCo contact force) plays the key under it: 93 notes in 1.5 s of walking. *orchestra*: three brain-only musician flies; sugar -> MN9 = bass (bitter in bars 5-6 mutes it: 17 -> 3 Hz), P9 + DNa steering = melody, looming -> giant-fiber bursts = snare/hi-hat. [keyboard](docs/piano_keyboard_with_sound.mp4) · [orchestra](docs/brain_orchestra.m4a) | Sonification: keyboard layout, scale, chords, score and note mapping are ours. The flies are not making music. |
+| **A specific song** (`play_piano(mode="song_road" \| "song_orchestra", song=...)`) | *Musical road*: the song's keys are laid just ahead of a P9-driven fly as it walks; each key sounds when a foot first lands on it. Ode to Joy: **28/30 notes**, ~73 BPM set by its own stepping (8x slowed). *Singer fly*: one sugar pulse per note, a note sounds if MN9 > 20 Hz: 30/30 notes; bitter on phrase 2 -> those 15 notes go silent (MN9 6 Hz). [road](docs/song_road_ode_to_joy.mp4) · [singer](docs/singer_ode_to_joy.m4a) · [singer + bitter](docs/singer_ode_to_joy_bitter_phrase2.m4a) | The melody is always our score (built-in public-domain tunes or note text like `E4 E4 F4 G4:2 R:1`). |
+| **Sugar maze** (`run_maze`) | Closed loop like `run_course`; touching a pellet drives sugar GRNs (+ bitter GRNs if poisoned); MN9 > 30 Hz = stop and eat. Intact: ate **3/3 sugar, 0/2 poisoned**, finished 136 m. Bitter GRNs silenced: ate 2/2 poisoned too. Note: bitter alone does **not** make the model back up (MDN 0 Hz). | Pellet contact radius, eating time, corridor. |
+| **Connectome Olympics** (`run_olympics`) | The same brain with different lesions races the closed-loop canyon: #1 intact (finished, 20.3 s), #2 all LPLC1 silenced (crash at 13%), #3 left DNa01+DNa02 silenced (crash at 8%), #4 only the LEFT eye's LPLC1 silenced (crash at 5%: half-blind is worse than blind, because the remaining eye's wall signal biases steering one way). | A lesion experiment presented as a race; results are model predictions. |
+| **Fly-throughs with a bat** (`fly_through`) | Same closed loop with rock pillars (cave) or trees (forest): cave 108 m in 20.7 s, forest 127 m in 24.4 s, nothing touched. A bat swoops in head-on; its looming drives LPLC2/LC4; the giant fiber fired 75 Hz with the bat 6-8 m away -> dodge. Wall input alone also gives occasional giant-fiber bursts (4-7 per run); they are reported, not credited to the bat. | **Flight is not simulated** (fixed-height glide); dodge is scripted; looming eye model, bat size/speed. Pillars had to be placed on straights: in bends they cancel the two-eye wall cue. |
 | **Obstacle course, closed loop** (`run_course` tool) | **No planner.** The brain runs as one continuous trial, exchanging data with the world every 20 ms (`BrainStepper`, spike-identical to the one-shot kernel). Wall nearness in each eye drives that side's LPLC1; in the connectome LPLC1 excites the *opposite* DNa01, so the car turns away from the nearer wall. Canyon (128 m of solid walls): **finished in 20.3 s, no wall touched**. Same brain with LPLC1 silenced: **crash at 3.4 s, 17 m in**. [figure](docs/course_canyon.png) | Eye model (rays -> LPLC1 rate), constant P9 drive, car link, course geometry. Literature: LPLC1 is needed for collision avoidance (slowing; Tanaka & Clark 2022); turning away is a model prediction. |
 
 ## Ask from the dashboard
@@ -83,6 +90,15 @@ claude                                       # in this folder; the flylab MCP se
 ```
 
 Then ask: *"Make the fly eat when it finds sugar, then prove which neuron is responsible."*
+Or try the extras: *"Swat the fly, then cut the giant fiber"*, *"Let the fly ride a bike"*, *"Make the flies play
+Twinkle Twinkle"*, *"Run the sugar maze with poisoned pellets"*, *"Run the Connectome Olympics"*.
+
+Show any precomputed extra on the dashboard without Claude (instant when cached):
+```bash
+.venv/Scripts/python.exe scripts/demo_extras.py              # list: swatter, bike, piano, orchestra, song_road, singer, maze, cave, forest, olympics ...
+.venv/Scripts/python.exe scripts/demo_extras.py song_road
+.venv/Scripts/python.exe -u scripts/run_extras_batch.py > runs/extras_batch.log   # (re)compute all extras, ~2-4 h on a laptop CPU
+```
 For recording the video, see [DEMO.md](DEMO.md) (precompute everything first with `scripts/precompute_demo.py`).
 
 ## Claude Code components
@@ -100,8 +116,11 @@ For recording the video, see [DEMO.md](DEMO.md) (precompute everything first wit
 ```
 flylab/        brain.py, _lif_numba.py (model) · connectome.py, groups.py (data) · lab.py (experiments)
                interface.py, body.py, behaviors.py (body) · mcp_server.py · plots.py, cache.py, reports.py
-dashboard/     server.py (FastAPI) + index.html (vanilla JS)
+               extras: car.py, arena.py (closed-loop courses, maze, fly-throughs, bat) · looming.py · swatter.py
+               bike.py · piano.py (keyboard, orchestra) · song.py (musical road, singer) · olympics.py
+dashboard/     server.py (FastAPI) + index.html (vanilla JS) + car3d.js (3D scenes) + piano.js (music views)
 scripts/       setup.sh, smoke_test.py, precompute_demo.py, test_mcp.py, test_body.py, validate_against_pytorch.py
+               demo_extras.py (show a cached extra on the dashboard), run_extras_batch.py (compute all extras)
 data/          neuron_groups.json (resolved from data, with sources), literature.md (cited fact sheet);
                connectome + annotation files are downloaded by setup.sh
 runs/          one folder per run: result.json, raster.png, video.mp4, commands.json, report.md

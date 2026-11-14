@@ -199,6 +199,7 @@ main { display: grid; grid-template-columns: 430px 1fr; min-height: 0; }
 <script type="importmap">{ "imports": { "three": "/vendor/three.module.min.js" } }</script>
 <script type="module" src="/dashboard/brain3d.js"></script>
 <script type="module" src="/dashboard/car3d.js"></script>
+<script src="/dashboard/piano.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 window.flylabState = {};
@@ -218,12 +219,21 @@ const KIND = { run_simulation: ["⚡", "k-sim", "Simulate brain"], run_behavior:
   get_neuron_group: ["🧩", "k-trace", "Neuron group"], list_neuron_groups: ["🧩", "k-trace", "List groups"],
   list_behaviors: ["📋", "k-trace", "List behaviours"], get_literature_facts: ["📚", "k-lit", "Literature facts"],
   save_report: ["📝", "k-lit", "Save lab report"], Agent: ["🤖", "k-agent", "Subagent"], Task: ["🤖", "k-agent", "Subagent"],
-  Skill: ["🧠", "k-agent", "Skill"] };
+  Skill: ["🧠", "k-agent", "Skill"], drive_car: ["🚗", "k-beh", "Drive car"], run_course: ["🏁", "k-beh", "Obstacle course"],
+  swat_fly: ["💥", "k-beh", "Fly swatter"], ride_bike: ["🚲", "k-beh", "Ride bike"], play_piano: ["🎹", "k-beh", "Fly piano"],
+  run_olympics: ["🏅", "k-beh", "Connectome Olympics"], fly_through: ["🦇", "k-beh", "Fly-through"], run_maze: ["🍬", "k-beh", "Sugar maze"] };
 
 function argText(tool, a) {
   if (!a) return "";
   if (tool === "run_simulation") return `activate: ${(a.activate||[]).join(", ")||"—"}` + (a.silence && a.silence.length ? ` · silence: ${a.silence.join(", ")}` : "") + (a.stim_rate_hz ? ` · ${a.stim_rate_hz} Hz` : "");
   if (tool === "run_behavior") return `${a.behavior}` + (a.silence && a.silence.length ? ` · silence: ${a.silence.join(", ")}` : "");
+  const sil = (a.silence && a.silence.length) ? ` · silence: ${a.silence.join(", ")}` : "";
+  if (tool === "swat_fly") return `${a.speed || "normal"} swat` + sil;
+  if (tool === "ride_bike") return `${a.preset || "custom"}` + sil;
+  if (tool === "play_piano") return `${a.mode || "keyboard"}` + sil;
+  if (tool === "run_olympics") return `${a.course || "canyon"}` + (a.contestants ? ` · ${a.contestants.length} contestants` : "");
+  if (tool === "fly_through") return `${a.place || "cave"}` + (a.bat === false ? "" : " + bat") + sil;
+  if (tool === "run_maze" || tool === "run_course" || tool === "drive_car") return (a.course || a.preset || a.goal || "") + sil;
   if (tool === "trace_pathway") return `${a.source} → ${a.target}` + (a.functional_run_id ? " (functional)" : "");
   if (tool === "lesion_screen") return `activate ${(a.activate||[]).join(", ")} · target ${a.target}`;
   if (tool === "search_neurons") return `"${a.query}"`;
@@ -351,7 +361,8 @@ function drawChart() {
   const X = t => L + pw * t / tmax, Y = v => T + ph * (1 - (Math.max(v, 0) - ymin) / (ymax - ymin));
   g.strokeStyle = css("--border"); g.lineWidth = 1; g.fillStyle = css("--text-muted"); g.font = "12px Segoe UI";
   for (let v = 0; v <= ymax; v += ymax / 4) { g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(L + pw, Y(v)); g.stroke(); g.fillText(v.toFixed(0), 6, Y(v) + 4); }
-  for (let t = 0; t <= tmax + 1e-6; t += (tmax > 3 ? 1 : 0.5)) { g.fillText(t.toFixed(1) + " s", X(t) - 12, H - 6); }
+  const tstep = tmax > 40 ? 10 : tmax > 16 ? 5 : tmax > 6 ? 2 : tmax > 3 ? 1 : 0.5;   // long closed-loop runs: fewer labels
+  for (let t = 0; t <= tmax + 1e-6; t += tstep) { g.fillText((tstep >= 1 ? t.toFixed(0) : t.toFixed(1)) + " s", X(t) - 12, H - 6); }
   g.fillText("Hz", L + 4, T + 12);
   // feeding-state shading
   g.fillStyle = "rgba(217,89,38,0.10)";
@@ -424,10 +435,15 @@ async function pollLatest() {
     $("readoutname").textContent = beh.behavior.replace(/_/g, " ");
     $("behbadge").innerHTML = (beh.silenced && beh.silenced.length) ? `<span class="badge lesion">LESION: ${esc(beh.silenced.join(", "))} silenced</span>` : `<span class="badge ctrl">intact brain</span>`;
     if (beh.scene === "car") {
+      if (window.flylabHidePiano) window.flylabHidePiano();
       if (changed) { $("videobox").innerHTML = `<div id="carbox"></div><div id="carhud"></div>`; window.flylabCarRun = beh.run_id;
         if (window.flylabShowCar) window.flylabShowCar(beh); }
+    } else if (beh.scene === "piano") {
+      if (window.flylabHideCar) window.flylabHideCar(); window.flylabCarRun = null;
+      if (changed) { $("videobox").innerHTML = `<div id="pianobox"></div>`; if (window.flylabShowPiano) window.flylabShowPiano(beh); }
     } else {
       if (window.flylabHideCar) window.flylabHideCar(); window.flylabCarRun = null;
+      if (window.flylabHidePiano) window.flylabHidePiano();
       if (beh.video && changed) $("videobox").innerHTML = `<video id="video" src="/${beh.video}?t=${beh._mtime}" autoplay loop muted playsinline></video>`;
       else if (!beh.video) $("videobox").innerHTML = `<div class="placeholder">${esc(beh.behavior)}: brain-only behaviour (no body video).<br>See the brain activity panel.</div>`;
     }
@@ -441,7 +457,9 @@ async function pollLatest() {
 // ---------------------------------------------------------------- chat (Claude Code headless)
 const SUGGEST = ["Make the fly eat when it finds sugar, then prove which neuron is responsible.",
   "Make it reject food when there's something bitter in it.", "Make the fly take off when something looms.",
-  "Drive the car to the sugar station.", "Make the fly walk backwards.", "Which neurons respond to bitter taste?"];
+  "Drive the car to the sugar station.", "Make the fly walk backwards.", "Which neurons respond to bitter taste?",
+  "Swat the fly: can it escape? Then cut the giant fiber.", "Let the fly ride a bike.", "Start a fly piano band.",
+  "Run the Connectome Olympics.", "Fly through the bat cave.", "Run the sugar maze with poisoned pellets."];
 let chatN = 0, chatBusy = false;
 function renderChips() {
   if (chatN > 0) return;
@@ -479,10 +497,12 @@ $("chatsend").onclick = sendChat;
 $("chatinput").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } });
 $("chatnew").onclick = async () => { const r = await fetch("/api/chat/reset", { method: "POST" }); if (!r.ok) alert((await r.json()).error); chatN = 0; $("chatlog").innerHTML = ""; renderChips(); };
 $("chatstop").onclick = () => fetch("/api/chat/stop", { method: "POST" });
-renderChips(); setInterval(pollChat, 1000); pollChat();
+renderChips(); setInterval((() => { let busy = false; return async () => { if (busy) return; busy = true; try { await pollChat(); } finally { busy = false; } }; })(), 1000); pollChat();
 
 function loop() { drawChart(); requestAnimationFrame(loop); }
-setInterval(pollEvents, 1000); setInterval(pollLatest, 1000);
+// never start a poll while the previous one is still in flight (a slow server must not pile up requests)
+const once = (f) => { let busy = false; return async () => { if (busy) return; busy = true; try { await f(); } finally { busy = false; } }; };
+setInterval(once(pollEvents), 1000); setInterval(once(pollLatest), 1000);
 pollEvents(); pollLatest(); window.addEventListener("resize", drawChart); requestAnimationFrame(loop);
 </script>
 </body>

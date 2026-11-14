@@ -25,7 +25,7 @@ _ACT_CACHE: dict = {}
 
 @app.get("/dashboard/{name}.js")
 def dashboard_js(name: str):
-    if name not in ("brain3d", "car3d"):
+    if name not in ("brain3d", "car3d", "piano"):
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(REPO / "dashboard" / f"{name}.js", media_type="text/javascript", headers={"Cache-Control": "no-store"})
 
@@ -108,8 +108,23 @@ def _compact_sim(d):
                                   "raster_png", "timeseries", "timeseries_bin_s", "_mtime")}
 
 
+_LATEST_MEMO: dict = {"key": None, "body": None}
+
+
+def _mt(p: Path) -> float:
+    try:
+        return p.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 @app.get("/api/latest")
 def latest():
+    # every cache.save_result rewrites runs/latest.json: if neither it nor the report changed, answer from memory
+    # (the page polls every second; rescanning all runs under CPU load took 1-5 s and requests piled up)
+    key = (_mt(RUNS / "latest.json"), _mt(RUNS / "latest_report.json"))
+    if key == _LATEST_MEMO["key"] and _LATEST_MEMO["body"] is not None:
+        return JSONResponse(_LATEST_MEMO["body"], headers={"Cache-Control": "no-store"})
     beh = _latest("behavior")
     if beh:
         cmd_p = RUNS / beh["run_id"] / "commands.json"
@@ -122,8 +137,9 @@ def latest():
         if p.exists():
             rep = {"title": info["title"], "path": info["path"], "markdown": p.read_text(encoding="utf8"),
                    "_mtime": p.stat().st_mtime}
-    return JSONResponse({"sim": _compact_sim(_latest("simulation")), "behavior": beh, "report": rep},
-                        headers={"Cache-Control": "no-store"})
+    body = {"sim": _compact_sim(_latest("simulation")), "behavior": beh, "report": rep}
+    _LATEST_MEMO.update(key=key, body=body)
+    return JSONResponse(body, headers={"Cache-Control": "no-store"})
 
 
 from fastapi import Request  # noqa: E402
@@ -169,6 +185,19 @@ def clear_events():
     return {"ok": True}
 
 
+def _warmup():
+    """Import the simulation stack (torch, connectome, groups) in the background right after start. The 3D brain
+    view needs it for neuron roles; importing it inside the first request blocked the whole server for ~20-60 s
+    (the page then showed nothing)."""
+    try:
+        from flylab import lab
+        lab._group_indices()
+    except Exception:
+        pass
+
+
 if __name__ == "__main__":
+    import threading
+    threading.Thread(target=_warmup, daemon=True).start()
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

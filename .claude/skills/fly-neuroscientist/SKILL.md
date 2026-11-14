@@ -24,6 +24,13 @@ neurons should respond?), and the **behaviour** to show on the body. Use `list_b
 | fly away / escape | `LPLC2` (looming) | `giant_fiber` (DNp01) | `takeoff` (scripted flight, say so) |
 | drive a car | P9 / DNa / MDN | car (analogy) | `drive_car` tool (presets or goal="station") |
 | obstacle course / avoid walls | eyes -> LPLC1 L/R -> DNa01/02 | car, CLOSED LOOP | `run_course` (canyon, hairpin, slalom); control `silence=["LPLC1"]` |
+| swat it / escape a swatter | looming -> `LPLC2` + `LC4` | `giant_fiber` | `swat_fly`; control `silence=["giant_fiber"]` |
+| ride a bike | P9 / DNa / MDN -> real legs | ball read-out -> bike | `ride_bike`; control `silence=["DNa01_left","DNa02_left"]` |
+| play music / piano | walking legs or MN9 / DNa / GF | sonification | `play_piano` (keyboard / orchestra); say we composed the score |
+| play a specific song | P9 walking (road) or sugar -> MN9 (singer) | notes | `play_piano(mode="song_road"/"song_orchestra", song=...)`; control `bitter_notes` / `silence=["P9"]` |
+| race / compare lesions | eyes -> LPLC1 -> DNa | race leaderboard | `run_olympics` |
+| fly through a cave / forest, bat | LPLC1 (walls) + LPLC2/LC4 (bat) | DNa + giant fiber | `fly_through`; control `silence=["giant_fiber"]` |
+| maze / find food, avoid poison | sugar_GRNs (+ bitter_GRNs) on contact | MN9 (stop + eat) | `run_maze`; control `silence=["bitter_GRNs"]` |
 
 ## 2. Find the neurons
 `get_neuron_group` for each group: report count, cell types, data source. For anything else,

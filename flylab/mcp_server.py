@@ -173,6 +173,86 @@ async def run_course(course: str = "canyon", silence: list[str] | None = None, m
 
 
 @server.tool()
+async def swat_fly(speed: str = "normal", silence: list[str] | None = None) -> str:
+    """FLY-SWATTER escape game (body video, 10x slow motion). A swatter comes down on a walking fly (P9 on).
+    Its looming image drives LPLC2 + LC4 (designed eye model, flylab/looming.py) in a closed-loop whole-brain trial
+    (5 ms chunks). If the giant fiber (DNp01) exceeds 50 Hz in time, the fly takes off (SCRIPTED animation, no
+    aerodynamics) and the swatter hits the floor; otherwise SPLAT. speed = "slow" | "normal" | "fast" | "lightning".
+    Controls: silence=["giant_fiber"] -> splat; silence=["LPLC2"] -> escape relies on LC4 and comes later.
+    Returns outcome, giant-fiber time, swatter distance/angle at that moment, margin in ms. ~2-4 min unless cached."""
+    from flylab import swatter
+    return await _run(swatter.swat_fly, speed, silence or [])
+
+
+@server.tool()
+async def ride_bike(preset: str | None = "loop", maneuvers: list[dict] | None = None,
+                    silence: list[str] | None = None) -> str:
+    """The fly rides a BICYCLE through a ball-rig read-out: manoeuvre stimuli (same as drive_car: forward = P9,
+    left/right = P9 + DNa01/DNa02 of that side, reverse = MDN) -> whole brain -> interface -> the physics-simulated
+    legs walk -> their forward speed and yaw (what a ball under a tethered fly would measure) drive the bike
+    (designed gear/yaw link). The bike reads the LEGS, not the neurons. preset = "loop" | "slalom" | "sprint" |
+    "reverse", or maneuvers=[{"action": "left", "seconds": 1.0}, ...] (max 5 s). Lesion demo:
+    silence=["DNa01_left","DNa02_left"] with preset="loop". ~4-8 min unless cached (leg physics)."""
+    from flylab import bike
+    return await _run(bike.ride_bike, preset, maneuvers, silence or [])
+
+
+@server.tool()
+async def play_piano(mode: str = "keyboard", players: list[str] | None = None, silence: list[str] | None = None,
+                     song: str | None = None, p9_hz: float = 100.0, bpm: float = 100.0,
+                     bitter_notes: list[int] | None = None) -> str:
+    """FLY PIANO BAND. No circuit makes music; two honest sonifications:
+    mode="keyboard": a gang of up to 3 flies (walking behaviours, default walk_forward, turn_left, walk_backward)
+    walks across a giant pentatonic keyboard; every front-foot touchdown in the physics sim plays the key under it
+    (rhythm = real stepping, 8x slowed). Video of fly 1 with sound + all notes. ~6-10 min unless cached.
+    mode="orchestra": three musician flies, brain only, ~2 min: sugar pulses -> MN9 = bass (bitter in bars 5-6
+    mutes it), P9 + left/right DNa stimulation -> turn signal = melody, looming LPLC2/LC4 -> giant fiber = drums.
+    The score is designed; the brain decides which notes sound. Lesions are audible (silence=["giant_fiber"]).
+    A SPECIFIC SONG (song = "ode_to_joy" | "twinkle" | "frere_jacques" or note text "E4 E4 F4 G4:2 R:1 C#5:0.5"):
+    mode="song_road": a musical road of the song's keys laid along the path a P9-driven fly really walks; each key
+    sounds when a foot first lands on it (rhythm = the fly's stepping; p9_hz lower = slower tempo; silence=["P9"] =
+    no song). ~10-20 min unless cached. mode="song_orchestra": one sugar pulse per note to a singer fly; a note sounds
+    if MN9 > 20 Hz (bitter_notes = note indices that also get bitter -> silent). ~1-3 min. The melody is always OUR
+    score; for copyrighted songs ask the user for the notes."""
+    from flylab import piano
+    return await _run(piano.play_piano, mode, players, silence or [], song, p9_hz, bpm, bitter_notes)
+
+
+@server.tool()
+async def run_olympics(course: str = "canyon", contestants: list[dict] | None = None) -> str:
+    """CONNECTOME OLYMPICS: the same brain with different lesions races the same closed-loop course (run_course).
+    contestants = [{"name": "Intact", "silence": []}, {"name": "No LPLC1", "silence": ["LPLC1"]}, ...] (max 6);
+    default: intact, left LPLC1 off, left DNa01+DNa02 off, all LPLC1 off. Returns a leaderboard (finish time or
+    % of course before crashing) and shows all cars racing on the dashboard. Results are model predictions.
+    Each new contestant costs a run_course (~2-8 min); cached ones are instant."""
+    from flylab import olympics
+    return await _run(olympics.run_olympics, course, contestants)
+
+
+@server.tool()
+async def fly_through(place: str = "cave", bat: bool = True, silence: list[str] | None = None) -> str:
+    """Themed closed-loop FLY-THROUGH: place = "cave" (stalactite pillars) | "forest" (tree trunks). Same engine as
+    run_course (eyes -> LPLC1 L/R -> whole brain -> DNa steering, P9 on, solid walls and obstacles). Flight is NOT
+    simulated: the fly avatar glides at a fixed height. bat=True: at 3 s a bat swoops in head-on; its looming drives
+    LPLC2/LC4; giant fiber > 50 Hz -> DODGE (scripted), else CAUGHT. Controls: silence=["giant_fiber"] (caught),
+    silence=["LPLC1"] (crashes into the rock). ~2-8 min unless cached."""
+    from flylab import olympics
+    return await _run(olympics.fly_through, place, bat, silence or [])
+
+
+@server.tool()
+async def run_maze(silence: list[str] | None = None) -> str:
+    """SUGAR MAZE (closed loop): a hedge corridor with 3 sugar pellets and 2 poisoned pellets (sugar + bitter).
+    Steering as in run_course. Touching a pellet stimulates sugar GRNs (+ bitter GRNs if poisoned) at 200 Hz;
+    if MN9 exceeds 30 Hz the fly stops and eats (0.6 s eats the pellet). Expected: eats sugar, skips poison because
+    bitter suppresses MN9. Note: bitter alone does NOT drive backing up (MDN 0 Hz in this model).
+    Controls: silence=["bitter_GRNs"] -> eats the poison too; silence=["CB0553"] -> eats nothing.
+    Returns pellets eaten, MN9 peak, outcome. ~3-8 min unless cached."""
+    from flylab import olympics
+    return await _run(olympics.run_maze, silence or [])
+
+
+@server.tool()
 async def get_literature_facts(topic: str = "") -> str:
     """Curated, cited facts from the literature (Shiu et al. 2024, FlyWire papers, descending-neuron papers)
     stored in data/literature.md. Use to check claims; anything not here is unverified."""

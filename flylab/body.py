@@ -251,7 +251,7 @@ class FlyBody:
                  cam_azimuth_deg: float = -65.0, hud: bool = True,
                  drive_tau: float = 0.05, timestep: float = 1e-4,
                  self_collisions: str = "legs", settle_time: float = 0.05,
-                 seed: int = 0):
+                 seed: int = 0, props=None, cam_fovy: float = 35.0):
         from flygym.arena import FlatTerrain
         from flygym.examples.locomotion import HybridTurningController
 
@@ -288,10 +288,13 @@ class FlyBody:
             wb.add("geom", name="sugar_dome", type="ellipsoid",
                    size=(0.55 * r, 0.55 * r, 0.25 * r), pos=(sx, sy, 0.0),
                    rgba=(1.0, 0.93, 0.70, 0.85), contype=0, conaffinity=0)
+        # extra scenery (visual props, mocap bodies) added by activities (swatter, piano keys, ...)
+        if props is not None:
+            props(arena.root_element.worldbody)
         # camera (pose overwritten every frame)
         self._cam = arena.root_element.worldbody.add(
             "camera", name="flylab_follow", mode="fixed", pos=(-5, -5, 5),
-            fovy=35)
+            fovy=cam_fovy)
 
         # ---- fly: stock NMF v2 + proboscis joints/actuators + neck actuator
         Fly = _cached_obs_fly_class()
@@ -372,6 +375,10 @@ class FlyBody:
         self.physics_error: Optional[str] = None
         self.trajectory: list[tuple] = []   # (t, x, y, heading_deg, dL, dR, feed)
         self._hud_text = ""
+        # hooks: step_hooks(body) every 1 ms of simulated time inside run();
+        # frame_hooks(body) before each video frame (to move props); both optional
+        self.step_hooks: list = []
+        self.frame_hooks: list = []
 
         # settle: let the fly land with zero drive (not recorded)
         for _ in range(int(round(settle_time / self.timestep))):
@@ -463,6 +470,8 @@ class FlyBody:
         cam_pos = target + self._cam_dist * self._cam_dir
         ph.data.cam_xpos[self._cam_id] = cam_pos
         ph.data.cam_xmat[self._cam_id] = _look_at_xmat(cam_pos, target)
+        for hook in self.frame_hooks:
+            hook(self)
         w, h = self.window_size
         img = ph.render(width=w, height=h, camera_id=self._cam_id).copy()
         if self.hud:
@@ -549,6 +558,8 @@ class FlyBody:
                         prob_n += 1
                         if step_count % (10 * check_every) == 0:
                             self._log()
+                        for hook in self.step_hooks:
+                            hook(self)
                         part = self._contact_part()
                         if part is not None and contact_time is None:
                             contact_time, contact_part = self.time, part
@@ -629,6 +640,21 @@ class FlyBody:
             self._log()
         return {"takeoff": True, "t_start_s": round(t0, 3), "t_end_s": round(self.time, 3),
                 "climb_mm": climb_mm, "forward_mm": forward_mm, "scripted": True}
+
+    def hold(self, duration_s: float, hud: str | None = None) -> None:
+        """Keep filming for duration_s without stepping physics (frozen body; frame hooks still run,
+        so props can keep moving). Used for end cards such as the swatter landing."""
+        frame_dt = self.play_speed / self.fps
+        if hud is not None:
+            self._hud_text = hud
+        for _ in range(max(1, int(round(duration_s / frame_dt)))):
+            self.time += frame_dt
+            if self.render_enabled:
+                self._render_frame()
+
+    @property
+    def physics(self):
+        return self._ph
 
     def save_video(self, path) -> str:
         """Write all frames recorded so far (across run() calls) to an mp4."""
