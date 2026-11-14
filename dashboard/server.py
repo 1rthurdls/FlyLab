@@ -25,7 +25,7 @@ _ACT_CACHE: dict = {}
 
 @app.get("/dashboard/{name}.js")
 def dashboard_js(name: str):
-    if name not in ("brain3d", "car3d", "piano"):
+    if name not in ("brain3d", "car3d", "piano", "band3d"):
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(REPO / "dashboard" / f"{name}.js", media_type="text/javascript", headers={"Cache-Control": "no-store"})
 

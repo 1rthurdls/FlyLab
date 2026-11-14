@@ -108,6 +108,11 @@ window.flylabShowPiano = async (beh) => {
   if (P && P.runId === beh.run_id) return;
   const data = await (await fetch(`/${beh.piano}?t=${beh._mtime}`)).json();
   const box = document.getElementById("pianobox"); box.innerHTML = "";
+  if (data.mode === "song" && !data.video && window.flylabShowBand) {   // singer flies: the 3D fly band at the piano
+    if (P) { try { P.media.pause(); } catch (e) {} }
+    P = null; await window.flylabShowBand(box, data, beh); return;
+  }
+  if (window.flylabHideBand) window.flylabHideBand();
   box.style.cssText = "position:absolute;inset:0;display:flex;flex-direction:column;gap:6px;padding:8px;";
   let media;
   if (data.mode === "keyboard" || (data.mode === "song" && data.video)) {
@@ -126,6 +131,6 @@ window.flylabShowPiano = async (beh) => {
   box.appendChild(cv); box.appendChild(info);
   P = { box, cv, info, data, media, runId: beh.run_id };
 };
-window.flylabHidePiano = () => { if (P) { P.media.pause(); P = null; } };
+window.flylabHidePiano = () => { if (P) { P.media.pause(); P = null; } if (window.flylabHideBand) window.flylabHideBand(); };
 requestAnimationFrame(pianoLoop);
 })();

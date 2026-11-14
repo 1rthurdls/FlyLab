@@ -114,7 +114,7 @@ main { display: grid; grid-template-columns: 430px 1fr; min-height: 0; }
 #carhud { position: absolute; left: 14px; top: 8px; font-size: 14px; color: var(--text-primary); pointer-events: none;
   text-shadow: 0 0 4px #000; line-height: 1.45; }
 #carhud .muted { color: var(--text-secondary); font-size: 12px; }
-#chatbox { height: 42%; min-height: 260px; border-top: 1px solid var(--border); display: flex; flex-direction: column; }
+#chatbox { flex: 1; min-height: 260px; display: flex; flex-direction: column; }
 .chattitle { display: flex; align-items: center; gap: 8px; }
 .chattitle .tab:first-of-type { margin-left: auto; }
 #chatstatus { text-transform: none; letter-spacing: 0; color: var(--series-2); font-size: 12.5px; }
@@ -153,8 +153,8 @@ main { display: grid; grid-template-columns: 430px 1fr; min-height: 0; }
   </header>
   <main>
     <section id="feedcol">
-      <div class="coltitle">Claude at work — live tool calls</div>
-      <div id="feed"><div class="placeholder">Waiting for Claude… (tool calls appear here via the PostToolUse hook)</div></div>
+      <!-- live tool-call feed removed from view; kept hidden because it drives the header status pill -->
+      <div id="feed" style="display:none"></div>
       <div id="chatbox">
         <div class="coltitle chattitle">Ask Claude <span id="chatstatus"></span>
           <button id="chatstop" class="tab" style="display:none">stop</button><button id="chatnew" class="tab">new chat</button></div>
@@ -200,6 +200,7 @@ main { display: grid; grid-template-columns: 430px 1fr; min-height: 0; }
 <script type="module" src="/dashboard/brain3d.js"></script>
 <script type="module" src="/dashboard/car3d.js"></script>
 <script src="/dashboard/piano.js"></script>
+<script type="module" src="/dashboard/band3d.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 window.flylabState = {};
@@ -213,15 +214,15 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 
 // ---------------------------------------------------------------- live feed
 let nEvents = 0, pending = [];
-const KIND = { run_simulation: ["⚡", "k-sim", "Simulate brain"], run_behavior: ["🎬", "k-beh", "Run behaviour"],
-  lesion_screen: ["✂️", "k-lesion", "Lesion screen"], compare_conditions: ["⚖️", "k-lesion", "Compare conditions"],
-  trace_pathway: ["🧭", "k-trace", "Trace pathway"], search_neurons: ["🔍", "k-trace", "Search connectome"],
-  get_neuron_group: ["🧩", "k-trace", "Neuron group"], list_neuron_groups: ["🧩", "k-trace", "List groups"],
-  list_behaviors: ["📋", "k-trace", "List behaviours"], get_literature_facts: ["📚", "k-lit", "Literature facts"],
-  save_report: ["📝", "k-lit", "Save lab report"], Agent: ["🤖", "k-agent", "Subagent"], Task: ["🤖", "k-agent", "Subagent"],
-  Skill: ["🧠", "k-agent", "Skill"], drive_car: ["🚗", "k-beh", "Drive car"], run_course: ["🏁", "k-beh", "Obstacle course"],
-  swat_fly: ["💥", "k-beh", "Fly swatter"], ride_bike: ["🚲", "k-beh", "Ride bike"], play_piano: ["🎹", "k-beh", "Fly piano"],
-  run_olympics: ["🏅", "k-beh", "Connectome Olympics"], fly_through: ["🦇", "k-beh", "Fly-through"], run_maze: ["🍬", "k-beh", "Sugar maze"] };
+const KIND = { run_simulation: ["", "k-sim", "Simulate brain"], run_behavior: ["", "k-beh", "Run behaviour"],
+  lesion_screen: ["", "k-lesion", "Lesion screen"], compare_conditions: ["", "k-lesion", "Compare conditions"],
+  trace_pathway: ["", "k-trace", "Trace pathway"], search_neurons: ["", "k-trace", "Search connectome"],
+  get_neuron_group: ["", "k-trace", "Neuron group"], list_neuron_groups: ["", "k-trace", "List groups"],
+  list_behaviors: ["", "k-trace", "List behaviours"], get_literature_facts: ["", "k-lit", "Literature facts"],
+  save_report: ["", "k-lit", "Save lab report"], Agent: ["", "k-agent", "Subagent"], Task: ["", "k-agent", "Subagent"],
+  Skill: ["", "k-agent", "Skill"], drive_car: ["", "k-beh", "Drive car"], run_course: ["", "k-beh", "Obstacle course"],
+  swat_fly: ["", "k-beh", "Fly swatter"], ride_bike: ["", "k-beh", "Ride bike"], play_piano: ["", "k-beh", "Fly piano"],
+  run_olympics: ["", "k-beh", "Connectome Olympics"], fly_through: ["", "k-beh", "Fly-through"], run_maze: ["", "k-beh", "Sugar maze"] };
 
 function argText(tool, a) {
   if (!a) return "";
@@ -277,7 +278,7 @@ function compactSummary(sum) {
 function addEvent(ev) {
   const feed = $("feed");
   if (feed.firstChild && feed.firstChild.classList && feed.firstChild.classList.contains("placeholder")) feed.innerHTML = "";
-  const [ico, cls, nice] = KIND[ev.tool] || ["🔧", "", ev.tool];
+  const [ico, cls, nice] = KIND[ev.tool] || ["", "", ev.tool];
   if (ev.phase === "start") {
     const el = document.createElement("div");
     el.className = `card ${cls}`;
@@ -385,7 +386,7 @@ function drawChart() {
   g.fillStyle = css("--text-secondary"); for (const [y, t] of labels) g.fillText(t, L + pw + 6, y + 4);
   // playhead synced to the video
   const v = document.querySelector("#video");
-  const carT = (lastBeh && lastBeh.scene === "car" && window.flylabSceneTime) ? window.flylabSceneTime() : null;
+  const carT = (lastBeh && (lastBeh.scene === "car" || window.flylabBandRun === lastBeh.run_id) && window.flylabSceneTime) ? window.flylabSceneTime() : null;
   if (carT != null || (v && !isNaN(v.currentTime))) {
     const t = carT != null ? Math.min(carT, tmax) : Math.min(v.currentTime * ((lastBeh && lastBeh.video_play_speed) || 0.25), tmax); g.strokeStyle = css("--text-primary"); g.lineWidth = 1.5;
     g.beginPath(); g.moveTo(X(t), T); g.lineTo(X(t), T + ph); g.stroke();
@@ -455,7 +456,9 @@ async function pollLatest() {
   }
 }
 // ---------------------------------------------------------------- chat (Claude Code headless)
-const SUGGEST = ["Make the fly eat when it finds sugar, then prove which neuron is responsible.",
+const SUGGEST = ["Play 22 Questions: play_piano(mode='song_road', song='twenty_two_questions'), then the melody+bass fly duet with mode='song_orchestra', bpm=90, then again with bitter_notes 15-27 on the chorus.",
+  "Play the Time Pulse organ piece: play_piano(mode='song_road', song='time_pulse'), then the singer fly with bpm=60, then again with bitter_notes 16-27 to mute the climb.",
+  "Make the fly eat when it finds sugar, then prove which neuron is responsible.",
   "Make it reject food when there's something bitter in it.", "Make the fly take off when something looms.",
   "Drive the car to the sugar station.", "Make the fly walk backwards.", "Which neurons respond to bitter taste?",
   "Swat the fly: can it escape? Then cut the giant fiber.", "Let the fly ride a bike.", "Start a fly piano band.",

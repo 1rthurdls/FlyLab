@@ -35,6 +35,23 @@ SONGS = {
     "twinkle": {"title": "Twinkle Twinkle Little Star (traditional, public domain)",
                 "notes": "C4 C4 G4 G4 A4 A4 G4:2 F4 F4 E4 E4 D4 D4 C4:2 "
                          "G4 G4 F4 F4 E4 E4 D4:2 G4 G4 F4 F4 E4 E4 D4:2"},
+    "space_organ": {"title": "Space Organ (original FlyLab piece in a cinematic sci-fi mood; not a transcription "
+                             "of any film score)", "inst": "organ",
+                    # slow organ arpeggios over Am - F - C - G, ending on A
+                    "notes": "A3 E4 A4 C5 E5 C5 A4 E4 F3 C4 F4 A4 C5 A4 F4 C4 "
+                             "C4 G4 C5 E5 G5 E5 C5 G4 G3 D4 G4 B4 D5 B4 G4 D4 A4:2"},
+    "time_pulse": {"title": "Time Pulse (original FlyLab piece: cinematic minimalist organ style - a pulsing pedal "
+                            "note under a slowly climbing voice, long crescendo; not a transcription of any film score)",
+                   "inst": "organ", "crescendo": True,
+                   "notes": "A4 E5 A4 E5 A4 F5 A4 F5 G4 E5 G4 E5 G4 D5 G4 D5 "
+                            "A4 E5 A4 F5 A4 G5 A4 A5 C5 G5 B4 G5 A4:2 E5:2 A5:4"},
+    # user-supplied original arrangement (mood of a well-known R&B song, not a transcription): Intro + Chorus 1
+    "twenty_two_questions": {"title": "22 Questions (user-supplied original arrangement): Intro + Chorus",
+                             "inst": "epiano", "bpm": 90,
+                             "notes": "A4:2 C5:2 E5:2 C5:2 A4:2 G4:2 E4:2 G4:2 A4:2 C5:2 E5:2 G5:2 E5:2 D5:2 C5:4 "
+                                      "E5:2 G5:2 A5:2 G5:2 E5:2 D5:2 C5:4 A4:2 C5:2 E5:2 G5:2 A5:4 G5:4",
+                             "bass": "A2:2 R:2 F2:2 R:2 C3:2 R:2 G2:2 R:2 A2:2 R:2 F2:2 R:2 C3:2 R:2 G2:2 R:2 "
+                                     "A2:2 R:2 F2:2 R:2 C3:2 R:2 G2:2 R:2 A2:2 R:2 F2:2 R:2 C3:2 R:2 G2:2 R:2"},
     "frere_jacques": {"title": "Frere Jacques (traditional, public domain)",
                       "notes": "C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4:2 E4 F4 G4:2 "
                                "G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4 C4 "
@@ -42,7 +59,8 @@ SONGS = {
 }
 _PC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 
-MM_PER_BEAT = 1.2          # key length on the road per beat
+MM_PER_BEAT = 1.2          # key length on the road per beat (shrunk for long songs, see ROAD_MAX_MM)
+ROAD_MAX_MM = 42.0         # longer songs get shorter keys so the whole song fits in one walk (~4-5 s)
 ROAD_START_MM = 2.5        # road starts this far along the fly's path (front feet are ~1.5 mm ahead of the thorax)
 ROAD_HALF_W = 3.5          # touchdowns farther than this from the road centre line do not count
 ROAD_VIS_HALF_W = 2.6      # drawn half-width of the keys
@@ -80,6 +98,20 @@ def parse_song(song) -> tuple[str, list[tuple[int | None, float]]]:
     return title, out
 
 
+def song_vel(song, i: int, n: int, base: float) -> float:
+    """Loudness of note i of n: songs marked crescendo swell from 45% to 100%."""
+    meta = SONGS.get(str(song).strip().lower()) if isinstance(song, str) else None
+    if meta and meta.get("crescendo") and n > 1:
+        return base * (0.45 + 0.55 * i / (n - 1))
+    return base
+
+
+def song_inst(song, default: str) -> str:
+    """Instrument for a built-in song (e.g. organ for space_organ); custom note text uses the default."""
+    meta = SONGS.get(str(song).strip().lower()) if isinstance(song, str) else None
+    return (meta or {}).get("inst", default)
+
+
 def _name(m):
     return "rest" if m is None else ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"][m % 12] + str(m // 12 - 1)
 
@@ -95,14 +127,14 @@ def _key_rgba(m):
     return (*colorsys.hsv_to_rgb(((m - 60) % 12) / 12.0, 0.75, 0.95), 1.0)   # one colour per pitch class
 
 
-def _road_props(notes):
+def _road_props(notes, mm_beat=MM_PER_BEAT):
     """One movable (mocap) flat key per note, parked under the floor until laid. Keys never collide."""
     def add(wb):
         kw = dict(contype=0, conaffinity=0)
         for i, (m, b) in enumerate(notes):
             k = wb.add("body", name=f"songkey{i}", mocap=True, pos=(0, 0, -60.0 - i))
             k.add("geom", name=f"songkey{i}_g", type="box", rgba=_key_rgba(m),
-                  size=(max(b * MM_PER_BEAT / 2 - 0.09, 0.05), ROAD_VIS_HALF_W, 0.01), **kw)
+                  size=(max(b * mm_beat / 2 - 0.09, 0.05), ROAD_VIS_HALF_W, 0.01), **kw)
     return add
 
 
@@ -167,9 +199,10 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
     from .body import FlyBody
     silence = silence or []
     title, notes = parse_song(song)
-    total_mm = ROAD_START_MM + sum(b for _, b in notes) * MM_PER_BEAT
+    mmb = min(MM_PER_BEAT, ROAD_MAX_MM / sum(b for _, b in notes))
+    total_mm = ROAD_START_MM + sum(b for _, b in notes) * mmb
     D = round(min(6.0, total_mm / WALK_SPEED_GUESS + 0.6), 2)
-    params = {"notes": notes, "p9": p9_hz, "silence": sorted(silence), "mm_beat": MM_PER_BEAT, "D": D,
+    params = {"notes": notes, "p9": p9_hz, "silence": sorted(silence), "mm_beat": mmb, "D": D,
               "look": LOOKAHEAD_MM, "v": 3}
     lab_ = "song_road" + (("__silence-" + "+".join(silence)) if silence else "")
     run_id = cache.run_id_for("beh", lab_, params)
@@ -183,10 +216,10 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
     cmd = interface.motor_commands(sim["timeseries"], sim["timeseries_bin_s"])
     prog = interface.to_program(cmd)
     d = cache.run_dir(run_id)
-    edges = np.concatenate([[0.0], np.cumsum([b * MM_PER_BEAT for _, b in notes])]) + ROAD_START_MM
+    edges = np.concatenate([[0.0], np.cumsum([b * mmb for _, b in notes])]) + ROAD_START_MM
     attempts = []
     for seed in (0, 1, 2, 3, 4):
-        body = FlyBody(render=True, props=_road_props(notes), play_speed=1 / AUDIO_SLOW, window_size=(960, 600),
+        body = FlyBody(render=True, props=_road_props(notes, mmb), play_speed=1 / AUDIO_SLOW, window_size=(960, 600),
                        cam_distance=12.0, cam_elevation_deg=55.0, cam_azimuth_deg=-90.0, seed=seed)
         td, laid = [], {}
         body.step_hooks.append(_road_layer(body, notes, edges, laid))
@@ -203,7 +236,7 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
     played = {}
     for t, leg, x, y in td:
         for k, key in laid.items():
-            if k not in played and t >= key[3] and _on_key(x, y, key, notes[k][1] * MM_PER_BEAT / 2):
+            if k not in played and t >= key[3] and _on_key(x, y, key, notes[k][1] * mmb / 2):
                 played[k] = (t, leg)
                 break
     seq = []
@@ -219,7 +252,8 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
     audio_notes = []
     for a, b_ in zip(hits, hits[1:] + [None]):
         dur = ((b_["t"] - a["t"]) * AUDIO_SLOW + 0.15) if b_ else 1.5
-        audio_notes.append({"t": a["t"], "midi": a["midi"], "vel": 0.8, "inst": "piano",
+        audio_notes.append({"t": a["t"], "midi": a["midi"], "vel": song_vel(song, a["i"], len(notes), 0.85),
+                            "inst": song_inst(song, "piano"),
                             "dur": max(0.25, min(dur, 2.5))})
     dur_audio = _render_wav(audio_notes, d / "song.wav", time_scale=AUDIO_SLOW)
     if not _mux(d / "video_silent.mp4", d / "song.wav", d / "video.mp4"):
@@ -261,12 +295,7 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
 
 
 # ----------------------------------------------------------------------------- 2. singer fly (brain only)
-def song_orchestra(song="ode_to_joy", bpm: float = 100.0, bitter_notes: list[int] | None = None,
-                   silence: list[str] | None = None) -> dict:
-    from .behaviors import _save_cmds
-    silence = silence or []
-    title, notes = parse_song(song)
-    bitter = set(bitter_notes or [])
+def _singer_schedule(notes, bpm, bitter):
     beat = 60.0 / bpm
     sched, t, spans = [], 0.0, []
     for i, (m, b) in enumerate(notes):
@@ -278,8 +307,41 @@ def song_orchestra(song="ode_to_joy", bpm: float = 100.0, bitter_notes: list[int
             if i in bitter:
                 sched.append({"neurons": ["bitter_GRNs"], "rate_hz": 200.0, "t0": round(t, 3), "t1": on})
         t += dur
-    D = round(t + 0.3, 3)
-    params = {"notes": notes, "bpm": bpm, "bitter": sorted(bitter), "silence": sorted(silence), "v": 1}
+    return sched, spans, round(t + 0.3, 3)
+
+
+RESPONSE_S = 0.45   # MN9 is read over the sugar pulse (<= 0.35 s) + latency, not the whole (possibly long) note
+
+
+def _sing(notes, spans, sim, bitter):
+    """One singer fly: a note sounds if its MN9 rate in the response window (first RESPONSE_S of the note, i.e. the
+    sugar pulse + latency) exceeds 20 Hz. Averaging over a long note would dilute a strong response."""
+    mn9 = np.asarray(sim["timeseries"]["MN9"])
+    bin_s = sim["timeseries_bin_s"]
+    seq = []
+    for i, ((m, b), (a, z)) in enumerate(zip(notes, spans)):
+        z_resp = min(z, a + RESPONSE_S)
+        hz = float(np.mean(mn9[int(a / bin_s):max(int(z_resp / bin_s), int(a / bin_s) + 1)])) if m is not None else 0.0
+        seq.append({"i": i, "midi": m, "name": _name(m), "beats": b, "t": a, "dur_s": round(z - a, 3),
+                    "played": m is not None and hz > 20.0, "mn9_hz": round(hz, 1), "bitter": i in bitter})
+    return seq
+
+
+def song_orchestra(song="ode_to_joy", bpm: float = 100.0, bitter_notes: list[int] | None = None,
+                   silence: list[str] | None = None, bass=None) -> dict:
+    """Singer fly (and, if the song has a bass line or `bass` is given, a second BASS fly): one sugar pulse per
+    note; each note sounds only if that fly's MN9 fires > 20 Hz. Two flies = two separate whole-brain trials."""
+    from .behaviors import _save_cmds
+    silence = silence or []
+    title, notes = parse_song(song)
+    meta = SONGS.get(str(song).strip().lower(), {}) if isinstance(song, str) else {}
+    bass = bass or meta.get("bass")
+    bass_notes = parse_song(bass)[1] if bass else None
+    bitter = set(bitter_notes or [])
+    sched, spans, D = _singer_schedule(notes, bpm, bitter)
+    params = {"notes": notes, "bpm": bpm, "bitter": sorted(bitter), "silence": sorted(silence), "v": 2}
+    if bass_notes:
+        params["bass"] = bass_notes
     lab_ = "song_orchestra" + (("__silence-" + "+".join(silence)) if silence else "")
     run_id = cache.run_id_for("beh", lab_, params)
     cached = cache.load_result(run_id)
@@ -288,40 +350,45 @@ def song_orchestra(song="ode_to_joy", bpm: float = 100.0, bitter_notes: list[int
         return cached
     t0 = time.perf_counter()
     sim = lab.run_simulation([], silence, 200.0, D, 1, schedule=sched, label=f"{lab_}_brain")
-    mn9 = np.asarray(sim["timeseries"]["MN9"])
-    bin_s = sim["timeseries_bin_s"]
-    seq, audio = [], []
-    for i, ((m, b), (a, z)) in enumerate(zip(notes, spans)):
-        hz = float(np.mean(mn9[int(a / bin_s):max(int(z / bin_s), int(a / bin_s) + 1)])) if m is not None else 0.0
-        ok = m is not None and hz > 20.0
-        seq.append({"i": i, "midi": m, "name": _name(m), "beats": b, "t": a, "played": ok, "mn9_hz": round(hz, 1),
-                    "bitter": i in bitter})
-        if ok:
-            audio.append({"t": a, "midi": m, "vel": min(1.0, 0.25 + hz / 90), "inst": "lead",
-                          "dur": max(0.25, (z - a) * 1.1)})
+    seq = _sing(notes, spans, sim, bitter)
+    inst = song_inst(song, "lead")
+    audio = [{"t": e["t"], "midi": e["midi"], "inst": inst, "dur": max(0.25, e["dur_s"] * 1.1),
+              "vel": song_vel(song, e["i"], len(notes), min(1.0, 0.25 + e["mn9_hz"] / 90))} for e in seq if e["played"]]
+    bseq, bsim = None, None
+    if bass_notes:
+        bsched, bspans, bD = _singer_schedule(bass_notes, bpm, set())
+        bsim = lab.run_simulation([], silence, 200.0, bD, 1, schedule=bsched, label=f"{lab_}_bass_brain", seed=1)
+        bseq = _sing(bass_notes, bspans, bsim, set())
+        audio += [{"t": e["t"], "midi": e["midi"], "inst": "bass", "dur": max(0.3, e["dur_s"] * 1.2),
+                   "vel": 0.55 * min(1.0, 0.25 + e["mn9_hz"] / 90)} for e in bseq if e["played"]]
     d = cache.run_dir(run_id)
     dur_audio = _render_wav(audio, d / "song.wav")
-    (d / "piano.json").write_text(json.dumps({"mode": "song", "title": title, "seq": seq, "time_scale": 1.0,
-                                              "audio": f"runs/{run_id}/song.wav", "video": None}), encoding="utf8")
-    _save_cmds(d, [interface.motor_commands(sim["timeseries"], bin_s)])
+    (d / "piano.json").write_text(json.dumps({"mode": "song", "title": title, "seq": seq, "bass_seq": bseq,
+                                              "time_scale": 1.0, "audio": f"runs/{run_id}/song.wav", "video": None}),
+                                  encoding="utf8")
+    _save_cmds(d, [interface.motor_commands(sim["timeseries"], sim["timeseries_bin_s"])])
     sounding = [e for e in seq if e["midi"] is not None]
     plain = [e["mn9_hz"] for e in sounding if not e["bitter"]]
     bit = [e["mn9_hz"] for e in sounding if e["bitter"]]
+    bsound = [e for e in (bseq or []) if e["midi"] is not None]
     out = {"run_id": run_id, "kind": "behavior", "behavior": "song_orchestra", "scene": "piano", "label": lab_,
-           "description": "Singer fly: one sugar pulse per note; a note sounds only if MN9 fires > 20 Hz.",
+           "description": "Singer fly (+ bass fly): one sugar pulse per note; a note sounds only if MN9 fires > 20 Hz.",
            "song": title, "silenced": silence, "bpm": bpm, "notes_total": len(sounding),
            "notes_played": sum(e["played"] for e in sounding),
            "mn9_mean_hz_sugar_notes": round(float(np.mean(plain)), 1) if plain else None,
            "mn9_mean_hz_bitter_notes": round(float(np.mean(bit)), 1) if bit else None,
-           "brain_runs": [sim["run_id"]], "raster_png": sim["raster_png"], "video": None,
-           "audio": f"runs/{run_id}/song.wav", "audio_s": dur_audio, "piano": f"runs/{run_id}/piano.json",
-           "phases": [],
+           "bass_notes_total": len(bsound) if bseq else None,
+           "bass_notes_played": sum(e["played"] for e in bsound) if bseq else None,
+           "brain_runs": [sim["run_id"]] + ([bsim["run_id"]] if bsim else []), "raster_png": sim["raster_png"],
+           "video": None, "audio": f"runs/{run_id}/song.wav", "audio_s": dur_audio,
+           "piano": f"runs/{run_id}/piano.json", "phases": [],
            "summary": (f"LESION: silenced {', '.join(silence)}. " if silence else "") +
                       f"'{title}' at {bpm:.0f} BPM: {sum(e['played'] for e in sounding)}/{len(sounding)} notes sang "
                       f"(MN9 mean {np.mean(plain) if plain else 0:.0f} Hz on sugar notes"
-                      + (f", {np.mean(bit):.0f} Hz on the {len(bit)} bitter notes" if bit else "") + ").",
+                      + (f", {np.mean(bit):.0f} Hz on the {len(bit)} bitter notes" if bit else "") + ")"
+                      + (f"; bass fly {sum(e['played'] for e in bsound)}/{len(bsound)} notes" if bseq else "") + ".",
            "wall_s": round(time.perf_counter() - t0, 1),
-           "framing": "The score (which note, when) is ours; the brain decides whether each note sounds (MN9 > 20 Hz) "
-                      "and how loud. Sonification, not musicianship."}
+           "framing": "The score (which note, when) is ours; each fly's brain decides whether each note sounds "
+                      "(MN9 > 20 Hz) and how loud. Two flies = two separate whole-brain trials. Sonification."}
     cache.save_result(run_id, out)
     return out

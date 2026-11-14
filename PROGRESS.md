@@ -81,6 +81,14 @@ Decisions / fixes worth knowing:
   (a global `loop` name clashed with index.html). Hook matcher anchored (`Task` matched `TaskStop`).
 - `.mcp.json` now starts the server from this folder (it pointed to an older copy in Downloads/Flylab).
 
+- Songs (2026-11-14/15): user-supplied arrangement `twenty_two_questions` (Intro + Chorus, 64 beats, plus a bass
+  line -> a second singer fly), original pieces `time_pulse` / `space_organ` (organ), electric-piano timbre, road keys
+  auto-shrink for long songs. Singer rule changed: MN9 is read over each note's first 0.45 s (pulse + latency); the
+  whole-note mean diluted long notes (22 Questions 19/28 -> 28/28; bitter controls still silent at 8 Hz).
+- `dashboard/band3d.js`: one fly per part at a 3D grand piano; proboscis extension follows that fly's MN9 trace,
+  the key goes down when MN9 > 20 Hz and only then the browser plays the note (WebAudio). Panels show taste input,
+  MN9 and a trace. Live tool feed hidden (kept for the header status); emoji icons removed.
+
 Costs on this laptop (CPU only, often with two jobs at once): closed-loop course 10-25 min, swatter video 3-5 min,
 bike 10-50 min, piano keyboard 25 min, song road 30 min, orchestra 15 min, singer 4 min.
 

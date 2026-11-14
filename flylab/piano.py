@@ -108,6 +108,12 @@ def _tone(midi, dur, vel, kind="piano"):
         y = (np.sin(2 * np.pi * f * t) + 0.35 * np.sin(4 * np.pi * f * t)) * np.exp(-t * 2.2)
     elif kind == "lead":
         y = (np.sin(2 * np.pi * f * t) + 0.3 * np.sin(6 * np.pi * f * t)) * np.exp(-t * 4.0)
+    elif kind == "epiano":   # soft electric piano: warm fundamental + bell-like partial, medium decay
+        y = (np.sin(2 * np.pi * f * t) + 0.25 * np.sin(2 * np.pi * f * 2 * t) * np.exp(-t * 6)
+             + 0.12 * np.sin(2 * np.pi * f * 3.98 * t) * np.exp(-t * 14)) * np.exp(-t * 1.6)
+    elif kind == "organ":   # sustained pipe-organ-like tone: octave + fifth partials, slow swell, soft release
+        y = sum(a_ * np.sin(2 * np.pi * f * h * t) for h, a_ in ((0.5, 0.35), (1, 1.0), (2, 0.55), (3, 0.3), (4, 0.2)))
+        y = y * np.minimum(1.0, t / 0.09) * np.where(t < 0.75 * dur, 1.0, np.exp(-(t - 0.75 * dur) * 9))
     elif kind == "snare":
         rng = np.random.default_rng(int(midi))
         y = rng.standard_normal(n) * np.exp(-t * 18) * 0.6 + np.sin(2 * np.pi * 185 * t) * np.exp(-t * 25)

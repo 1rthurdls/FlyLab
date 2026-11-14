@@ -341,12 +341,14 @@ function sample(traj, t) {
 }
 
 const HOLD_S = 1.5;
-window.flylabSceneTime = () => {
+const carSceneTime = () => {
   if (!state) return null;
   if (state.vid && state.vid.duration) return Math.min(state.vid.currentTime * state.playSpeed, state.dur);
   const T = state.dur + HOLD_S;
   return Math.min(((performance.now() - state.t0) / 1000) % T, state.dur);
 };
+
+window.flylabSceneTime = carSceneTime;
 
 function follow(x, y, th, back = 11, up = 6.5, ahead = 4, lookY = 1.0, k = 0.06) {
   const goal = new THREE.Vector3(x - Math.cos(th) * back, up, -y + Math.sin(th) * back);
@@ -448,7 +450,7 @@ function frameCourse(t, x, y, th, v, st) {
 
 function frame() {
   if (state && state.box.offsetParent !== null) {
-    const t = window.flylabSceneTime();
+    const t = carSceneTime();
     if (state.racers) frameRace(t);
     else if (state.bike) frameBike(t);
     else {
@@ -482,6 +484,7 @@ function resize() {
 window.addEventListener("resize", resize);
 
 window.flylabShowCar = async (beh) => {
+  window.flylabSceneTime = carSceneTime;   // the fly band may have taken over the shared clock
   if (state && state.runId === beh.run_id) return;
   const data = await (await fetch(`/${beh.car}?t=${beh._mtime}`)).json();
   data.runId = beh.run_id;

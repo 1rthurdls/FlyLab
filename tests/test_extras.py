@@ -66,7 +66,7 @@ def test_song_parser_and_builtin_songs():
     assert notes == [(60, 1.0), (61, 0.5), (58, 2.0), (None, 1.0)]
     for name in song.SONGS:
         t, n = song.parse_song(name)
-        assert "public domain" in t and 20 <= len(n) and sum(b for _, b in n) <= 64
+        assert ("public domain" in t or "original" in t) and 20 <= len(n) and sum(b for _, b in n) <= 64
     import pytest
     with pytest.raises(ValueError):
         song.parse_song("H4 X")
