@@ -1,5 +1,7 @@
 # FlyLab — Claude as an autonomous fly neuroscientist
 
+> New here? Read the plain-language report: **[REPORT.md](REPORT.md)**.
+
 **Claude operates a real, connectome-based simulation of the entire fruit-fly brain (FlyWire, 138,639 neurons,
 15.1 M connections) and drives a physics-simulated 3D fly body with it.**
 

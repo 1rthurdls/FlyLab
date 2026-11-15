@@ -40,6 +40,10 @@ DEMOS = {
                                                     bitter_notes=list(range(15, 28)))),
     "22q_road": ("22 Questions: a walking fly plays the melody on a musical road (video with sound)",
                  lambda m: m["piano"].play_piano("song_road", song="twenty_two_questions")),
+    "car": ("The fly drives a car: u-turn", lambda m: m["car"].drive_car(preset="u_turn")),
+    "car_lesion": ("Car u-turn with left DNa01/DNa02 silenced (cannot turn left)",
+                   lambda m: m["car"].drive_car(preset="u_turn", silence=["DNa01_left", "DNa02_left"])),
+    "canyon": ("Car on the closed-loop canyon obstacle course", lambda m: m["arena"].run_course("canyon")),
     "maze": ("Sugar maze: eats sugar, refuses poison", lambda m: m["olympics"].run_maze()),
     "maze_poison": ("Sugar maze, bitter GRNs silenced (eats poison)", lambda m: m["olympics"].run_maze(["bitter_GRNs"])),
     "cave": ("Cave fly-through with a bat", lambda m: m["olympics"].fly_through("cave", True)),
@@ -54,8 +58,8 @@ def main():
         for k, (d, _) in DEMOS.items():
             print(f"  {k:14s} {d}")
         return
-    from flylab import bike, olympics, piano, swatter
-    mods = {"bike": bike, "olympics": olympics, "piano": piano, "swatter": swatter}
+    from flylab import arena, bike, car, olympics, piano, swatter
+    mods = {"arena": arena, "bike": bike, "car": car, "olympics": olympics, "piano": piano, "swatter": swatter}
     t = time.time()
     r = DEMOS[sys.argv[1]][1](mods)
     # put this run's own brain simulation on the brain panel too, then the behaviour back on top
