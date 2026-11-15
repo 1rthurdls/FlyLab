@@ -456,13 +456,12 @@ async function pollLatest() {
   }
 }
 // ---------------------------------------------------------------- chat (Claude Code headless)
-const SUGGEST = ["Play 22 Questions: play_piano(mode='song_road', song='twenty_two_questions'), then the melody+bass fly duet with mode='song_orchestra', bpm=90, then again with bitter_notes 15-27 on the chorus.",
-  "Play the Time Pulse organ piece: play_piano(mode='song_road', song='time_pulse'), then the singer fly with bpm=60, then again with bitter_notes 16-27 to mute the climb.",
+const SUGGEST = ["Show the 22 Questions fly band", "Show 22 Questions with bitter on the chorus",
+  "Show the walking fly playing 22 Questions", "Show the Time Pulse fly band",
+  "Show the fly swatter, then cut the giant fiber", "Show the fly on a bike", "Show the sugar maze",
+  "Show the bat cave fly-through", "Show the Connectome Olympics", "Show the fly piano with 3 flies",
   "Make the fly eat when it finds sugar, then prove which neuron is responsible.",
-  "Make it reject food when there's something bitter in it.", "Make the fly take off when something looms.",
-  "Drive the car to the sugar station.", "Make the fly walk backwards.", "Which neurons respond to bitter taste?",
-  "Swat the fly: can it escape? Then cut the giant fiber.", "Let the fly ride a bike.", "Start a fly piano band.",
-  "Run the Connectome Olympics.", "Fly through the bat cave.", "Run the sugar maze with poisoned pellets."];
+  "Which neurons respond to bitter taste?"];
 let chatN = 0, chatBusy = false;
 function renderChips() {
   if (chatN > 0) return;

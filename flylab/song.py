@@ -198,6 +198,7 @@ def song_road(song="ode_to_joy", p9_hz: float = 100.0, silence: list[str] | None
     from .behaviors import _clean, _save_cmds
     from .body import FlyBody
     silence = silence or []
+    p9_hz = float(p9_hz)
     title, notes = parse_song(song)
     mmb = min(MM_PER_BEAT, ROAD_MAX_MM / sum(b for _, b in notes))
     total_mm = ROAD_START_MM + sum(b for _, b in notes) * mmb
@@ -333,6 +334,7 @@ def song_orchestra(song="ode_to_joy", bpm: float = 100.0, bitter_notes: list[int
     note; each note sounds only if that fly's MN9 fires > 20 Hz. Two flies = two separate whole-brain trials."""
     from .behaviors import _save_cmds
     silence = silence or []
+    bpm = float(bpm)   # 90 and 90.0 (MCP) must hit the same cache entry
     title, notes = parse_song(song)
     meta = SONGS.get(str(song).strip().lower(), {}) if isinstance(song, str) else {}
     bass = bass or meta.get("bass")

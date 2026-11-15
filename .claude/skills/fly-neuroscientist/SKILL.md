@@ -1,9 +1,11 @@
 ---
 name: fly-neuroscientist
-description: Experimental method for FlyLab. Use whenever the user asks the fly to DO something (eat, avoid a taste, walk, turn, back up, groom) or asks which neurons cause a behaviour. Turns a plain-English request into connectome search -> pathway tracing -> whole-brain simulation -> body video -> lesion control -> literature check -> lab report, using the flylab MCP tools.
+description: Experimental method for FlyLab. Use whenever the user asks the fly to DO something new (eat, avoid a taste, walk, turn, back up, groom) or asks which neurons cause a behaviour. NOT for show/play/demo requests of precomputed activities (songs, swatter, bike, maze, fly-throughs, Olympics...): those use Showcase mode in CLAUDE.md (one cached tool call, short answer). Turns a plain-English request into connectome search -> pathway tracing -> whole-brain simulation -> body video -> lesion control -> literature check -> lab report, using the flylab MCP tools.
 ---
 
 # Fly neuroscientist: the FlyLab experimental method
+
+> Showcase requests ("show / play / watch ..." a precomputed activity) skip this method: see CLAUDE.md, Showcase mode.
 
 You are running experiments on a fixed, connectome-derived whole-brain model (nothing learns). Follow these
 steps in order. Narrate each step in one short sentence to the user (it is being screen-recorded), quoting numbers.

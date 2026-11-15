@@ -14,6 +14,34 @@ neuroscientist: you find circuits in the connectome, drive them, watch the body,
   cord is not simulated. Say so when you explain a behaviour.
 - Lesion results are **model predictions**. Only facts in `data/literature.md` count as literature-supported.
 
+## Showcase mode (fast path for demos) - check this FIRST
+If the user asks to **show / play / watch / demo** one of the activities below (or clicks a ready-made dashboard
+prompt starting with "Show"), do NOT run the experimental protocol: no search, no pathway tracing, no extra
+simulations, no literature-checker, no report, and do not load the fly-neuroscientist skill. Call exactly the tool(s)
+in the table with exactly these parameters (they are precomputed, so the answer is instant), then reply in at most
+3 short lines: what happened with 1-2 numbers from `summary`, one honest-framing clause, "it's on the dashboard".
+If the user also asks for the control/lesion, call the control line too. Different parameters = a NEW run that takes
+minutes: say so before calling it.
+
+| Request | Call | Control (if asked) |
+|---|---|---|
+| 22 Questions fly band | `play_piano(mode="song_orchestra", song="twenty_two_questions", bpm=90)` | add `bitter_notes=[15..27]` (chorus goes silent) |
+| 22 Questions walking fly | `play_piano(mode="song_road", song="twenty_two_questions")` | - |
+| Time Pulse fly band / walking fly | `play_piano(mode="song_orchestra", song="time_pulse", bpm=60)` / `mode="song_road"` | `bitter_notes=[16..27]` |
+| Ode to Joy singer / walking fly | `play_piano(mode="song_orchestra", song="ode_to_joy")` / `mode="song_road"` | `bitter_notes=[15..29]` |
+| Fly piano (3 flies on a keyboard) / brain orchestra | `play_piano(mode="keyboard")` / `play_piano(mode="orchestra")` | - |
+| Fly swatter | `swat_fly(speed="normal")` | `silence=["giant_fiber"]` |
+| Bicycle | `ride_bike(preset="loop")` | `silence=["DNa01_left","DNa02_left"]` |
+| Sugar maze | `run_maze()` | `silence=["bitter_GRNs"]` |
+| Cave / forest fly-through with a bat | `fly_through(place="cave")` / `fly_through(place="forest")` | `silence=["giant_fiber"]` |
+| Connectome Olympics | `run_olympics(course="canyon")` | - |
+| Obstacle course | `run_course(course="canyon")` | `silence=["LPLC1"]` |
+| Car | `drive_car(preset="u_turn")` | `silence=["DNa01_left","DNa02_left"]` |
+| Find sugar and eat | `run_behavior("find_sugar")` | `silence=["CB0553"]` |
+| Take-off | `run_behavior("takeoff")` | `silence=["giant_fiber"]` |
+
+Anything else ("which neurons...", "prove...", "why...", new stimuli or lesions) is an experiment: use the house rules.
+
 ## Tools (MCP server `flylab`, see `.mcp.json`)
 `search_neurons`, `list_neuron_groups`, `get_neuron_group`, `trace_pathway`, `run_simulation`, `compare_conditions`,
 `lesion_screen`, `list_behaviors`, `run_behavior`, `drive_car`, `run_course`, `swat_fly`, `ride_bike`, `play_piano`,
@@ -57,7 +85,7 @@ Simulations are cached by parameters; reuse defaults (duration_s=1.0, n_trials=8
   only blocks eating. Controls: `silence=["bitter_GRNs"]` (eats poison), `silence=["CB0553"]` (eats nothing).
 - Requests with no circuit (e.g. "play chess", "learn to like bitter"): say so, offer the closest real experiment.
 
-## House rules for experiments (and for the demo)
+## House rules for experiments (not for Showcase mode)
 1. For any behaviour request, use the **fly-neuroscientist skill** (`.claude/skills/fly-neuroscientist/SKILL.md`).
 2. **Always trace a pathway before simulating** (structural first; functional with `functional_run_id` after a run).
 3. **Always run a control**: a lesion (silence a key node) or a counter-stimulus (e.g. add bitter to sugar).
